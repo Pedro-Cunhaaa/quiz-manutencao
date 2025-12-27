@@ -109,78 +109,56 @@
         const layout = document.getElementById('layout-admin');
         document.getElementById('tela-resultados').classList.remove('escondido');
 
-        // AGORA ACEITA MANUTENCAO OU MATEUS
-        if(usuarioLogado === "manutencao" || usuarioLogado === "mateus") {
+        if (usuarioLogado === "manutencao") {
+            // PAINEL COMPLETO - APENAS PARA MANUTENCAO
             container.classList.add('container-admin');
             layout.innerHTML = `
                 <div class="grid-manutencao">
                     <div class="coluna">
                         <button onclick="toggleSecao('sec-users', this, 'Usuários')" class="opcao" style="background: #9b59b6;">Exibir Usuários</button>
-                        <div id="sec-users" class="escondido">
-                            <div id="render-usuarios"></div>
-                            <div style="background:#eee; padding:10px; border-radius:8px;">
-                                <input id="n-user" class="input-edit" placeholder="Login">
-                                <input id="n-pass" class="input-edit" placeholder="Senha">
-                                <select id="n-tipo" class="input-edit">
-                                    <option value="user">User</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                                <button onclick="addUsuario()" class="opcao" style="background:#27ae60;">Adicionar</button>
-                            </div>
-                        </div>
+                        <div id="sec-users" class="escondido"><div id="render-usuarios"></div></div>
                         <button onclick="toggleSecaoQuestoes('sec-questoes', this)" class="opcao" style="background: #e67e22; margin-top:15px;">Exibir Questões do Quiz</button>
                         <div id="sec-questoes" class="escondido"><div id="render-questoes-atuais"></div></div>
                     </div>
-
                     <div class="coluna">
                         <button onclick="toggleSecao('sec-rel', this, 'Relatórios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
                         <div id="sec-rel" class="escondido"><div id="render-relatorios"></div></div>
-                        
                         <button onclick="toggleSecaoBanco('sec-banco-geral', this)" class="opcao" style="background: #d35400; margin-top:15px;">Banco de Questões</button>
                         <div id="sec-banco-geral" class="escondido">
                             <button onclick="toggleSecao('area-nova-questao', this, 'Criar Questão')" class="opcao" style="background:#e67e22;">Criar Questão</button>
-                            
                             <div id="area-nova-questao" class="escondido area-criacao">
-                                <strong>Nova Questão Direta</strong>
-                                <input type="text" id="dir-pergunta" class="input-edit" placeholder="Pergunta">
-                                
-                                <label style="font-size:11px; color:#333; display:block; margin-top:5px;">Imagem (.jpg opcional):</label>
-                                <input type="file" id="dir-foto" class="input-edit" accept="image/jpeg" onchange="previewImg(this)">
-                                <img id="dir-preview" style="width:100%; max-height:150px; object-fit:contain; display:none; margin-bottom:10px; border-radius:4px; border:1px solid #ddd; background:#fff;">
-
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"><input type="text" id="dir-opt-0" class="input-edit" placeholder="Opção 1"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"><input type="text" id="dir-opt-1" class="input-edit" placeholder="Opção 2"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="2"><input type="text" id="dir-opt-2" class="input-edit" placeholder="Opção 3"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="3"><input type="text" id="dir-opt-3" class="input-edit" placeholder="Opção 4"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="4"><input type="text" id="dir-opt-4" class="input-edit" placeholder="Opção 5"></div>
-                                
-                                <button onclick="salvarQuestaoDireta()" class="opcao" style="background: #27ae60;">Salvar no Banco</button>
-                            </div>
+                                </div>
                             <div id="render-banco-geral"></div>
                         </div>
                     </div>
-
                     <div class="coluna">
                         <button onclick="toggleSecao('sec-sug', this, 'Sugestões')" class="opcao" style="background: #27ae60;">Exibir Sugestões</button>
                         <div id="sec-sug" class="escondido"><div id="render-sugestoes"></div></div>
                     </div>
                 </div>`;
-            renderUsuarios(); 
-            renderRelatorios('render-relatorios'); 
-            renderSugestoes();
-        } else {
+            renderUsuarios(); renderRelatorios('render-relatorios'); renderSugestoes();
+        } 
+        else if (usuarioLogado === "mateus") {
+            // PAINEL RESTRITO - PARA MATEUS
+            container.classList.remove('container-admin'); // Mateus usa o layout estreito original
             layout.innerHTML = `
-                <button onclick="toggleSecao('sec-rel-mat', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
+                <button onclick="toggleSecao('sec-rel-mat', this, 'Relatórios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
                 <div id="sec-rel-mat" class="escondido"><div id="render-relatorios"></div></div>
+                
                 <div class="form-sugestao">
-                    <div class="coluna-titulo" style="font-size:14px;">Sugerir Nova Questão</div>
+                    <div class="coluna-titulo" style="font-size:14px;">Sugerir Nova Questão (com Foto)</div>
                     <input type="text" id="sug-pergunta" class="input-edit" placeholder="Pergunta">
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="0"> <input type="text" id="opt-0" class="input-edit" placeholder="Alternativa 1"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="1"> <input type="text" id="opt-1" class="input-edit" placeholder="Alternativa 2"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="2"> <input type="text" id="opt-2" class="input-edit" placeholder="Alternativa 3"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="3" > <input type="text" id="opt-3" class="input-edit" placeholder="Alternativa 4"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="4"> <input type="text" id="opt-4" class="input-edit" placeholder="Alternativa 5"></div>
-                    <button onclick="enviarIdeia()" class="opcao" style="background: #27ae60;">Enviar Sugestão</button>
+                    
+                    <label style="font-size:11px; color:#333;">Foto JPG (opcional):</label>
+                    <input type="file" id="sug-foto" class="input-edit" accept="image/jpeg" onchange="previewImgSug(this)">
+                    <img id="sug-preview" style="width:100%; max-height:150px; object-fit:contain; display:none; margin-bottom:10px; border-radius:4px;">
+
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="0"><input type="text" id="opt-0" class="input-edit" placeholder="Opção 1"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="1"><input type="text" id="opt-1" class="input-edit" placeholder="Opção 2"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="2"><input type="text" id="opt-2" class="input-edit" placeholder="Opção 3"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="3"><input type="text" id="opt-3" class="input-edit" placeholder="Opção 4"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="4"><input type="text" id="opt-4" class="input-edit" placeholder="Opção 5"></div>
+                    <button onclick="enviarIdeiaComFoto()" class="opcao" style="background: #27ae60;">Enviar Sugestão</button>
                 </div>`;
             renderRelatorios('render-relatorios');
         }
@@ -651,6 +629,54 @@
             reader.onload = () => resolve(reader.result);
             reader.onerror = error => reject(error);
         });
+    }
+
+    async function enviarIdeiaComFoto() {
+        const p = document.getElementById('sug-pergunta').value;
+        const fotoFile = document.getElementById('sug-foto').files[0];
+        const opts = [
+            document.getElementById('opt-0').value,
+            document.getElementById('opt-1').value,
+            document.getElementById('opt-2').value,
+            document.getElementById('opt-3').value,
+            document.getElementById('opt-4').value
+        ];
+        const cor = document.querySelector('input[name="correta"]:checked');
+
+        if(!p || !cor) return alert("Preencha a pergunta e a alternativa correta!");
+        
+        if (fotoFile && fotoFile.type !== "image/jpeg") {
+            return alert("A foto deve ser JPG!");
+        }
+
+        const imagemBase64 = await converterParaBase64(fotoFile);
+
+        await fetch('/salvar-ideia', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                pergunta: p,
+                opcoes: opts,
+                correta: opts[parseInt(cor.value)],
+                imagem: imagemBase64
+            })
+        });
+
+        alert("Sugestão enviada para revisão da Manutenção!");
+        location.reload();
+    }
+
+    // Função de preview específica para o Mateus
+    function previewImgSug(input) {
+        const preview = document.getElementById('sug-preview');
+        if (input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                preview.src = e.target.result; 
+                preview.style.display = 'block'; 
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
     }
 </script>
 </body>
