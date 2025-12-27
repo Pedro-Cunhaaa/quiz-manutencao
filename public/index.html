@@ -60,7 +60,7 @@
         <button onclick="location.reload()" class="opcao" style="background: #7f8c8d; max-width: 200px; margin: 20px auto;">Sair do Painel (Logout)</button>
     </div>
 
-    <div class="footer-creditos">Script by Mateus Martins, Pedro Brochi e Wagner Cunha</div>
+    <div class="footer-creditos">Script by Pedro Brochi e Wagner Cunha</div>
 </div>
 
 <script>
@@ -403,18 +403,30 @@
     async function toggleSecaoQuestoes(id, btn) {
         const sec = document.getElementById(id);
         const div = document.getElementById('render-questoes-atuais');
+        
         if (sec.classList.contains('escondido')) {
             const res = await fetch('/questoes/listar');
             const data = await res.json();
+            
             div.innerHTML = data.map(q => `
-                <div class="card-admin" style="background:#34495e;">
-                    <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})">X</button>
+                <div class="card-admin" style="background:#34495e; border-left: 5px solid #3498db; margin-bottom: 15px; padding: 15px;">
+                    <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})" title="Remover do Quiz">X</button>
                     
-                    ${q.imagem ? `<img src="${q.imagem}" style="width:60px; height:60px; object-fit:cover; float:right; border-radius:4px; margin-left:10px; background:#fff;">` : ''}
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:80px; height:80px; object-fit:cover; float:right; border-radius:4px; margin-left:10px; background:#fff; border: 1px solid #ccc;">` : ''}
                     
-                    <strong>${q.pergunta}</strong>
+                    <strong style="font-size: 16px;">${q.pergunta}</strong>
+                    
+                    <div style="font-size:12px; margin-top:10px; color: #ecf0f1; opacity: 0.9;">
+                        ${q.opcoes ? q.opcoes.map(o => `
+                            <div style="margin-bottom: 3px; ${o === q.correta ? 'color: #2ecc71; font-weight: bold;' : ''}">
+                                ${o === q.correta ? '●' : '○'} ${o}
+                            </div>
+                        `).join('') : '<i style="color:orange;">Erro: Sem alternativas registradas</i>'}
+                    </div>
+                    
                     <div style="clear:both;"></div>
-                </div>`).join('') || "Nenhuma questão ativa no quiz.";
+                </div>`).join('') || "Nenhuma questão ativa no quiz no momento.";
+                
             sec.classList.remove('escondido');
             btn.innerText = "Ocultar Questões do Quiz";
         } else {
