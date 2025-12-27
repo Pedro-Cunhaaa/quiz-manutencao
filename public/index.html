@@ -109,65 +109,65 @@
         const layout = document.getElementById('layout-admin');
         document.getElementById('tela-resultados').classList.remove('escondido');
 
-        if(usuarioLogado === "manutencao") {
+        // AGORA ACEITA MANUTENCAO OU MATEUS
+        if(usuarioLogado === "manutencao" || usuarioLogado === "mateus") {
             container.classList.add('container-admin');
             layout.innerHTML = `
                 <div class="grid-manutencao">
                     <div class="coluna">
-                        <button onclick="toggleSecao('sec-users', this, 'Usuarios')" class="opcao" style="background: #9b59b6;">Exibir Usuários</button>
+                        <button onclick="toggleSecao('sec-users', this, 'Usuários')" class="opcao" style="background: #9b59b6;">Exibir Usuários</button>
                         <div id="sec-users" class="escondido">
-                            <div class="coluna-titulo">Usuários</div>
                             <div id="render-usuarios"></div>
-                            <div style="background:#eee; padding:10px; border-radius:8px; color:#333">
+                            <div style="background:#eee; padding:10px; border-radius:8px;">
                                 <input id="n-user" class="input-edit" placeholder="Login">
                                 <input id="n-pass" class="input-edit" placeholder="Senha">
-                                <select id="n-tipo" class="input-edit"><option value="user">User</option><option value="admin">Admin</option></select>
-                                <button onclick="addUsuario()" class="opcao" style="background:#27ae60; padding:5px;">Adicionar</button>
+                                <select id="n-tipo" class="input-edit">
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button onclick="addUsuario()" class="opcao" style="background:#27ae60;">Adicionar</button>
                             </div>
                         </div>
                         <button onclick="toggleSecaoQuestoes('sec-questoes', this)" class="opcao" style="background: #e67e22; margin-top:15px;">Exibir Questões do Quiz</button>
-                        <div id="sec-questoes" class="escondido">
-                            <div class="coluna-titulo">Questões Atuais</div>
-                            <div id="render-questoes-atuais"></div>
-                        </div>
+                        <div id="sec-questoes" class="escondido"><div id="render-questoes-atuais"></div></div>
                     </div>
 
                     <div class="coluna">
-                        <button onclick="toggleSecao('sec-rel', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
-                        <div id="sec-rel" class="escondido"><div class="coluna-titulo">Relatorios</div><div id="render-relatorios"></div></div>
+                        <button onclick="toggleSecao('sec-rel', this, 'Relatórios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
+                        <div id="sec-rel" class="escondido"><div id="render-relatorios"></div></div>
                         
                         <button onclick="toggleSecaoBanco('sec-banco-geral', this)" class="opcao" style="background: #d35400; margin-top:15px;">Banco de Questões</button>
                         <div id="sec-banco-geral" class="escondido">
-                            <div class="coluna-titulo">Banco Geral de Questões</div>
+                            <button onclick="toggleSecao('area-nova-questao', this, 'Criar Questão')" class="opcao" style="background:#e67e22;">Criar Questão</button>
                             
-                            <button onclick="toggleSecao('area-nova-questao', this, 'Criar Questão')" class="opcao" style="background:#e67e22; font-size:12px;">Criar Questão</button>
                             <div id="area-nova-questao" class="escondido area-criacao">
-                                <strong>Nova Questão (Direta no Banco)</strong>
+                                <strong>Nova Questão Direta</strong>
                                 <input type="text" id="dir-pergunta" class="input-edit" placeholder="Pergunta">
-
+                                
                                 <label style="font-size:11px; color:#333; display:block; margin-top:5px;">Imagem (.jpg opcional):</label>
                                 <input type="file" id="dir-foto" class="input-edit" accept="image/jpeg" onchange="previewImg(this)">
-                                <img id="dir-preview" style="width:100%; max-height:150px; object-fit:contain; display:none; margin-bottom:10px; border-radius:4px; border: 1px solid #ddd;">
+                                <img id="dir-preview" style="width:100%; max-height:150px; object-fit:contain; display:none; margin-bottom:10px; border-radius:4px; border:1px solid #ddd; background:#fff;">
 
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"> <input type="text" id="dir-opt-0" class="input-edit" placeholder="Alternativa 1"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"> <input type="text" id="dir-opt-1" class="input-edit" placeholder="Alternativa 2"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="2"> <input type="text" id="dir-opt-2" class="input-edit" placeholder="Alternativa 3"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="3"> <input type="text" id="dir-opt-3" class="input-edit" placeholder="Alternativa 4"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="4"> <input type="text" id="dir-opt-4" class="input-edit" placeholder="Alternativa 5"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"><input type="text" id="dir-opt-0" class="input-edit" placeholder="Opção 1"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"><input type="text" id="dir-opt-1" class="input-edit" placeholder="Opção 2"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="2"><input type="text" id="dir-opt-2" class="input-edit" placeholder="Opção 3"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="3"><input type="text" id="dir-opt-3" class="input-edit" placeholder="Opção 4"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="4"><input type="text" id="dir-opt-4" class="input-edit" placeholder="Opção 5"></div>
                                 
                                 <button onclick="salvarQuestaoDireta()" class="opcao" style="background: #27ae60;">Salvar no Banco</button>
                             </div>
-
                             <div id="render-banco-geral"></div>
                         </div>
                     </div>
 
                     <div class="coluna">
-                        <button onclick="toggleSecao('sec-sug', this, 'Sugestoes')" class="opcao" style="background: #27ae60;">Exibir Sugestões</button>
-                        <div id="sec-sug" class="escondido"><div class="coluna-titulo">Sugestões</div><div id="render-sugestoes"></div></div>
+                        <button onclick="toggleSecao('sec-sug', this, 'Sugestões')" class="opcao" style="background: #27ae60;">Exibir Sugestões</button>
+                        <div id="sec-sug" class="escondido"><div id="render-sugestoes"></div></div>
                     </div>
                 </div>`;
-            renderUsuarios(); renderRelatorios('render-relatorios'); renderSugestoes();
+            renderUsuarios(); 
+            renderRelatorios('render-relatorios'); 
+            renderSugestoes();
         } else {
             layout.innerHTML = `
                 <button onclick="toggleSecao('sec-rel-mat', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
@@ -448,23 +448,22 @@
                     
                     ${q.imagem ? `<img src="${q.imagem}" style="width:80px; height:80px; object-fit:cover; float:right; border-radius:4px; margin-left:10px; background:#fff; border: 1px solid #ccc;">` : ''}
                     
-                    <strong style="font-size: 16px; display: block; margin-bottom: 10px; padding-right: 30px;">${q.pergunta}</strong>
+                    <strong style="font-size: 16px; display: block; margin-bottom: 10px; padding-right: 35px;">${q.pergunta}</strong>
                     
-                    <div style="font-size:13px; color: #ecf0f1;">
-                        ${q.opcoes.map((o, index) => {
-                            // Comparação rigorosa para evitar duplicidade visual
+                    <div style="font-size:12px; color: #ecf0f1; font-family: monospace;">
+                        ${q.opcoes.map(o => {
+                            // Compara se o texto da opção é igual à resposta correta
                             const ehCorreta = (o.trim() === q.correta.trim());
                             return `
-                                <div style="margin-bottom: 5px; display: flex; align-items: center; ${ehCorreta ? 'color: #2ecc71; font-weight: bold;' : 'opacity: 0.8;'}">
-                                    <span style="margin-right: 8px;">${ehCorreta ? '✅' : '⚪'}</span>
-                                    <span>${o}</span>
+                                <div style="margin-bottom: 3px; ${ehCorreta ? 'color: #2ecc71; font-weight: bold;' : 'opacity: 0.8;'}">
+                                    ${ehCorreta ? '[X]' : '[&nbsp;&nbsp;]'} ${o}
                                 </div>
                             `;
                         }).join('')}
                     </div>
                     
                     <div style="clear:both;"></div>
-                </div>`).join('') || "Nenhuma questão ativa no quiz.";
+                </div>`).join('') || "Nenhuma questão ativa no quiz no momento.";
                 
             sec.classList.remove('escondido');
             btn.innerText = "Ocultar Questões do Quiz";
