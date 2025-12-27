@@ -48,7 +48,9 @@
 
     <div id="tela-quiz" class="escondido">
         <div id="timer" style="font-size: 40px; color: red;">30</div>
-        <h3 id="texto-pergunta"></h3>
+        <div id="container-pergunta">
+            <h3 id="texto-pergunta"></h3>
+        </div>
         <div id="area-opcoes"></div>
     </div>
 
@@ -400,18 +402,19 @@
 
     async function toggleSecaoQuestoes(id, btn) {
         const sec = document.getElementById(id);
-        const divRender = document.getElementById('render-questoes-atuais');
+        const div = document.getElementById('render-questoes-atuais');
         if (sec.classList.contains('escondido')) {
             const res = await fetch('/questoes/listar');
             const data = await res.json();
-            divRender.innerHTML = data.map(q => `
-                <div class="card-admin" style="background:#4b6584;">
+            div.innerHTML = data.map(q => `
+                <div class="card-admin" style="background:#34495e;">
                     <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})">X</button>
+                    
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:60px; height:60px; object-fit:cover; float:right; border-radius:4px; margin-left:10px; background:#fff;">` : ''}
+                    
                     <strong>${q.pergunta}</strong>
-                    <div style="font-size:11px; margin-top:5px; opacity:0.8;">
-                        ${q.opcoes ? q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('') : ''}
-                    </div>
-                </div>`).join('') || "Vazio.";
+                    <div style="clear:both;"></div>
+                </div>`).join('') || "Nenhuma questão ativa no quiz.";
             sec.classList.remove('escondido');
             btn.innerText = "Ocultar Questões do Quiz";
         } else {
@@ -464,19 +467,45 @@
 
     function mostrarPergunta() {
         if (indiceAtual >= perguntas.length) return finalizarQuiz();
-        clearInterval(cronometro); tempoRestante = 30;
+        
+        clearInterval(cronometro); 
+        tempoRestante = 30;
         document.getElementById('timer').innerText = tempoRestante;
+        
         const p = perguntas[indiceAtual];
-        document.getElementById('texto-pergunta').innerText = p.pergunta;
-        const area = document.getElementById('area-opcoes'); area.innerHTML = "";
+        const containerPergunta = document.getElementById('container-pergunta'); // Certifique-se que este ID existe no seu HTML em volta do texto da pergunta
+        const area = document.getElementById('area-opcoes'); 
+        area.innerHTML = "";
+
+        // Atualiza o conteúdo: Foto (se houver) + Texto da Pergunta
+        containerPergunta.innerHTML = `
+            ${p.imagem ? `<img src="${p.imagem}" style="width:100%; max-height:250px; object-fit:contain; border-radius:8px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:#fff;">` : ''}
+            <h3 id="texto-pergunta" style="margin-top:0;">${p.pergunta}</h3>
+        `;
+
         p.opcoes.forEach(opt => {
-            const btn = document.createElement('button'); btn.className = 'opcao'; btn.innerText = opt; btn.style.background = "#3498db";
-            btn.onclick = () => { respostasUsuario[p.id] = opt; indiceAtual++; mostrarPergunta(); };
-            area.appendChild(btn);
+            if (opt && opt.trim() !== "") { // Verifica se a opção não está vazia
+                const btn = document.createElement('button'); 
+                btn.className = 'opcao'; 
+                btn.innerText = opt; 
+                btn.style.background = "#3498db";
+                btn.onclick = () => { 
+                    respostasUsuario[p.id] = opt; 
+                    indiceAtual++; 
+                    mostrarPergunta(); 
+                };
+                area.appendChild(btn);
+            }
         });
+
         cronometro = setInterval(() => {
-            tempoRestante--; document.getElementById('timer').innerText = tempoRestante;
-            if(tempoRestante <= 0) { respostasUsuario[p.id] = "N/A"; indiceAtual++; mostrarPergunta(); }
+            tempoRestante--; 
+            document.getElementById('timer').innerText = tempoRestante;
+            if(tempoRestante <= 0) { 
+                respostasUsuario[p.id] = "N/A"; 
+                indiceAtual++; 
+                mostrarPergunta(); 
+            }
         }, 1000);
     }
 

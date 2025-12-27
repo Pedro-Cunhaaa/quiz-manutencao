@@ -57,16 +57,22 @@ app.post('/questoes/adicionar-da-sugestao', (req, res) => {
 });
 
 app.post('/questoes/ativar', (req, res) => {
+    const { id } = req.body;
     let banco = lerJSON(CAMINHO_BANCO_GERAL);
     let perguntasAtivas = lerJSON(CAMINHO_PERGUNTAS);
-    const questao = banco.find(q => q.id === req.body.id);
-    if (questao) {
-        perguntasAtivas.push(questao);
-        banco = banco.filter(q => q.id !== req.body.id);
+
+    const questaoParaAtivar = banco.find(q => q.id === id);
+
+    if (questaoParaAtivar) {
+        perguntasAtivas.push({
+            ...questaoParaAtivar, 
+            id: Date.now() // Gera um novo ID para a instância do quiz
+        });
         salvarJSON(CAMINHO_PERGUNTAS, perguntasAtivas);
-        salvarJSON(CAMINHO_BANCO_GERAL, banco);
         res.json({ sucesso: true });
-    } else res.status(404).json({ sucesso: false });
+    } else {
+        res.status(404).json({ erro: "Questão não encontrada" });
+    }
 });
 
 app.post('/questoes/remover-do-quiz', (req, res) => {
