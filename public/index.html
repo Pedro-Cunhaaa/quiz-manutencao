@@ -142,11 +142,17 @@
                             <div id="area-nova-questao" class="escondido area-criacao">
                                 <strong>Nova Questão (Direta no Banco)</strong>
                                 <input type="text" id="dir-pergunta" class="input-edit" placeholder="Pergunta">
+
+                                <label style="font-size:11px; color:#333; display:block; margin-top:5px;">Imagem (.jpg opcional):</label>
+                                <input type="file" id="dir-foto" class="input-edit" accept="image/jpeg" onchange="previewImg(this)">
+                                <img id="dir-preview" style="width:100%; max-height:150px; object-fit:contain; display:none; margin-bottom:10px; border-radius:4px; border: 1px solid #ddd;">
+
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"> <input type="text" id="dir-opt-0" class="input-edit" placeholder="Alternativa 1"></div>
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"> <input type="text" id="dir-opt-1" class="input-edit" placeholder="Alternativa 2"></div>
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="2"> <input type="text" id="dir-opt-2" class="input-edit" placeholder="Alternativa 3"></div>
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="3"> <input type="text" id="dir-opt-3" class="input-edit" placeholder="Alternativa 4"></div>
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="4"> <input type="text" id="dir-opt-4" class="input-edit" placeholder="Alternativa 5"></div>
+                                
                                 <button onclick="salvarQuestaoDireta()" class="opcao" style="background: #27ae60;">Salvar no Banco</button>
                             </div>
 
@@ -181,46 +187,48 @@
     // NOVA FUNÇÃO: Salva a questão criada pela manutenção direto no banco
     async function salvarQuestaoDireta() {
         const p = document.getElementById('dir-pergunta').value;
+        const fotoFile = document.getElementById('dir-foto').files[0]; // Captura o ficheiro
         const opts = [
-            document.getElementById('dir-opt-0').value, 
-            document.getElementById('dir-opt-1').value, 
-            document.getElementById('dir-opt-2').value, 
-            document.getElementById('dir-opt-3').value, 
+            document.getElementById('dir-opt-0').value,
+            document.getElementById('dir-opt-1').value,
+            document.getElementById('dir-opt-2').value,
+            document.getElementById('dir-opt-3').value,
             document.getElementById('dir-opt-4').value
         ];
         const cor = document.querySelector('input[name="correta-dir"]:checked');
-        
+
         if(!p || !cor) return alert("Preencha a pergunta e selecione a alternativa correta!");
-        
-        const questao = { 
-            pergunta: p, 
-            opcoes: opts, 
-            correta: opts[parseInt(cor.value)] 
+
+        // Converte a imagem (se existir)
+        const imagemBase64 = await converterParaBase64(fotoFile);
+
+        const questao = {
+            pergunta: p,
+            opcoes: opts,
+            correta: opts[parseInt(cor.value)],
+            imagem: imagemBase64 // Adiciona o campo imagem (pode ser null) [cite: 512, 697]
         };
 
-        // Reutilizamos a lógica do servidor: mandamos como ideia e depois aprovamos, 
-        // ou você pode criar uma rota nova. Para facilitar, vamos mandar para o servidor salvar.
-        await fetch('/salvar-ideia', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(questao) 
+        await fetch('/salvar-ideia', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(questao)
         });
 
-        // Como é manutenção, vamos pegar a última ideia salva e já aprovar automaticamente
         const resRefresh = await fetch('/admin/refresh-dados');
         const dados = await resRefresh.json();
         const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
         
         await aprovarParaBanco(ultimaIdeia.id);
+        alert("Questão criada com sucesso!");
         
-        alert("Questão criada e adicionada ao banco com sucesso!");
-        
-        // Limpar campos
+        // Limpar campos e preview
         document.getElementById('dir-pergunta').value = "";
+        document.getElementById('dir-foto').value = "";
+        document.getElementById('dir-preview').style.display = "none";
         document.querySelectorAll('input[name="correta-dir"]').forEach(r => r.checked = false);
         opts.forEach((_, i) => document.getElementById(`dir-opt-${i}`).value = "");
         
-        // Fechar área e atualizar lista
         toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
     }
 
@@ -472,6 +480,36 @@
         await fetch('/salvar-ideia', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pergunta: p, opcoes: opts, correta: opts[parseInt(cor.value)] }) });
         alert("Sugestão enviada!");
         document.getElementById('sug-pergunta').value = "";
+    }
+
+    // Função para mostrar a miniatura antes de enviar
+    function previewImg(input) {
+        const preview = document.getElementById('dir-preview');
+        const file = input.files[0];
+        if (file) {
+            if (file.type !== "image/jpeg") {
+                alert("Apenas ficheiros JPG são permitidos!");
+                input.value = "";
+                preview.style.display = 'none';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                preview.src = e.target.result; 
+                preview.style.display = 'block'; 
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Função para converter o ficheiro em string para o servidor
+    async function converterParaBase64(file) {
+        if (!file) return null;
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+        });
     }
 </script>
 </body>

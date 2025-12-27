@@ -106,5 +106,17 @@
       "fwe"
     ],
     "correta": "2"
+  },
+  {
+    "id": 6,
+    "pergunta": "Pergunta 6",
+    "opcoes": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "correta": "1"
   }
 ]
