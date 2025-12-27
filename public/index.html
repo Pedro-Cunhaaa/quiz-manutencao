@@ -188,60 +188,76 @@
 
     // NOVA FUNÇÃO: Salva a questão criada pela manutenção direto no banco
     async function salvarQuestaoDireta() {
-        const p = document.getElementById('dir-pergunta').value;
+        const p = document.getElementById('dir-pergunta');
         const fotoInput = document.getElementById('dir-foto');
-        const fotoFile = fotoInput.files[0];
+        const previewImg = document.getElementById('dir-preview');
         
-        const opts = [
-            document.getElementById('dir-opt-0').value,
-            document.getElementById('dir-opt-1').value,
-            document.getElementById('dir-opt-2').value,
-            document.getElementById('dir-opt-3').value,
-            document.getElementById('dir-opt-4').value
+        // Captura os inputs das alternativas para facilitar a limpeza depois
+        const optInputs = [
+            document.getElementById('dir-opt-0'),
+            document.getElementById('dir-opt-1'),
+            document.getElementById('dir-opt-2'),
+            document.getElementById('dir-opt-3'),
+            document.getElementById('dir-opt-4')
         ];
         
-        const cor = document.querySelector('input[name="correta-dir"]:checked');
+        const radios = document.querySelectorAll('input[name="correta-dir"]');
+        const radioSelecionado = document.querySelector('input[name="correta-dir"]:checked');
 
-        if(!p || !cor) return alert("Preencha a pergunta e a alternativa correta!");
+        // Validações
+        if (!p.value || !radioSelecionado) {
+            return alert("Por favor, preencha a pergunta e selecione a resposta correta.");
+        }
 
-        // Se houver foto, valida se é JPG. Se for outro formato, cancela o envio.
-        if (fotoFile && fotoFile.type !== "image/jpeg") {
-            return alert("Erro: A imagem deve ser obrigatoriamente do formato JPG.");
+        // Se houver foto, valida se é JPG
+        if (fotoInput.files[0] && fotoInput.files[0].type !== "image/jpeg") {
+            return alert("A imagem deve ser obrigatoriamente JPG.");
         }
 
         try {
-            const imagemBase64 = await converterParaBase64(fotoFile);
+            const imagemBase64 = await converterParaBase64(fotoInput.files[0]);
 
-            const questao = {
-                pergunta: p,
-                opcoes: opts,
-                correta: opts[parseInt(cor.value)],
-                imagem: imagemBase64 // Agora a foto vai junto [cite: 697]
+            const dadosQuestao = {
+                pergunta: p.value,
+                opcoes: optInputs.map(input => input.value),
+                correta: optInputs[parseInt(radioSelecionado.value)].value,
+                imagem: imagemBase64
             };
 
-            // Salva a ideia
-            await fetch('/salvar-ideia', {
+            // 1. Salva a ideia
+            const response = await fetch('/salvar-ideia', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(questao)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dadosQuestao)
             });
 
-            // Atualiza e aprova automaticamente para o banco [cite: 700, 701]
-            const resRefresh = await fetch('/admin/refresh-dados');
-            const dados = await resRefresh.json();
-            const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
-            
-            await aprovarParaBanco(ultimaIdeia.id);
-            
-            alert("Questão com foto salva com sucesso!");
-            
-            // Em vez de location.reload() que desloga, apenas atualizamos a interface
-            await atualizarDadosInterface();
-            toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
-            
+            if (response.ok) {
+                // 2. Aprovação automática para o banco
+                const resRefresh = await fetch('/admin/refresh-dados');
+                const dados = await resRefresh.json();
+                const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
+                await aprovarParaBanco(ultimaIdeia.id);
+
+                alert("Questão criada e adicionada ao banco!");
+
+                // --- LIMPEZA DOS CAMPOS (O que você pediu) ---
+                p.value = ""; // Limpa pergunta
+                fotoInput.value = ""; // Limpa input de arquivo
+                if(previewImg) previewImg.style.display = 'none'; // Esconde o preview
+                
+                optInputs.forEach(input => input.value = ""); // Limpa as 5 alternativas
+                
+                radios.forEach(r => r.checked = false); // Desmarca o rádio selecionado
+
+                // Atualiza a interface sem recarregar a página inteira (evita deslogar)
+                await atualizarDadosInterface();
+                
+                // Fecha a aba de criação
+                toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
+            }
         } catch (err) {
             console.error("Erro ao salvar:", err);
-            alert("Erro ao processar imagem. Verifique o tamanho do arquivo.");
+            alert("Erro técnico ao salvar.");
         }
     }
 
