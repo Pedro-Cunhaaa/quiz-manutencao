@@ -2,7 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
 const CAMINHO_USUARIOS = './usuarios.json';

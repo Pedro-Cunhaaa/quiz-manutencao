@@ -1,17 +1,5 @@
 [
   {
-    "id": 1766836682693,
-    "pergunta": "teste90",
-    "opcoes": [
-      "1",
-      "2",
-      "3",
-      "4",
-      "5"
-    ],
-    "correta": "5"
-  },
-  {
     "id": 2,
     "pergunta": "Pergunta 2",
     "opcoes": [

@@ -187,7 +187,9 @@
     // NOVA FUNÇÃO: Salva a questão criada pela manutenção direto no banco
     async function salvarQuestaoDireta() {
         const p = document.getElementById('dir-pergunta').value;
-        const fotoFile = document.getElementById('dir-foto').files[0]; // Captura o ficheiro
+        const fotoInput = document.getElementById('dir-foto');
+        const fotoFile = fotoInput.files[0];
+        
         const opts = [
             document.getElementById('dir-opt-0').value,
             document.getElementById('dir-opt-1').value,
@@ -195,41 +197,50 @@
             document.getElementById('dir-opt-3').value,
             document.getElementById('dir-opt-4').value
         ];
+        
         const cor = document.querySelector('input[name="correta-dir"]:checked');
 
-        if(!p || !cor) return alert("Preencha a pergunta e selecione a alternativa correta!");
+        if(!p || !cor) return alert("Preencha a pergunta e a alternativa correta!");
 
-        // Converte a imagem (se existir)
-        const imagemBase64 = await converterParaBase64(fotoFile);
+        // Se houver foto, valida se é JPG. Se for outro formato, cancela o envio.
+        if (fotoFile && fotoFile.type !== "image/jpeg") {
+            return alert("Erro: A imagem deve ser obrigatoriamente do formato JPG.");
+        }
 
-        const questao = {
-            pergunta: p,
-            opcoes: opts,
-            correta: opts[parseInt(cor.value)],
-            imagem: imagemBase64 // Adiciona o campo imagem (pode ser null) [cite: 512, 697]
-        };
+        try {
+            const imagemBase64 = await converterParaBase64(fotoFile);
 
-        await fetch('/salvar-ideia', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(questao)
-        });
+            const questao = {
+                pergunta: p,
+                opcoes: opts,
+                correta: opts[parseInt(cor.value)],
+                imagem: imagemBase64 // Agora a foto vai junto [cite: 697]
+            };
 
-        const resRefresh = await fetch('/admin/refresh-dados');
-        const dados = await resRefresh.json();
-        const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
-        
-        await aprovarParaBanco(ultimaIdeia.id);
-        alert("Questão criada com sucesso!");
-        
-        // Limpar campos e preview
-        document.getElementById('dir-pergunta').value = "";
-        document.getElementById('dir-foto').value = "";
-        document.getElementById('dir-preview').style.display = "none";
-        document.querySelectorAll('input[name="correta-dir"]').forEach(r => r.checked = false);
-        opts.forEach((_, i) => document.getElementById(`dir-opt-${i}`).value = "");
-        
-        toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
+            // Salva a ideia
+            await fetch('/salvar-ideia', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(questao)
+            });
+
+            // Atualiza e aprova automaticamente para o banco [cite: 700, 701]
+            const resRefresh = await fetch('/admin/refresh-dados');
+            const dados = await resRefresh.json();
+            const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
+            
+            await aprovarParaBanco(ultimaIdeia.id);
+            
+            alert("Questão com foto salva com sucesso!");
+            
+            // Em vez de location.reload() que desloga, apenas atualizamos a interface
+            await atualizarDadosInterface();
+            toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
+            
+        } catch (err) {
+            console.error("Erro ao salvar:", err);
+            alert("Erro ao processar imagem. Verifique o tamanho do arquivo.");
+        }
     }
 
     function renderRelatorios(id) {
@@ -417,6 +428,9 @@
             const data = await res.json();
             divRender.innerHTML = data.map(q => `
                 <div class="card-admin" style="background:#4b6584; border-left-color:#f39c12;">
+                    
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; background:#fff; margin-bottom:10px;">` : ''}
+                    
                     <strong>${q.pergunta}</strong>
                     <div style="font-size:11px; margin-top:5px; opacity:0.8;">
                         ${q.opcoes ? q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('') : ''}
@@ -509,6 +523,54 @@
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result);
+        });
+    }
+
+    // Valida o arquivo no momento da seleção e mostra o preview
+    function previewImg(input) {
+        const preview = document.getElementById('dir-preview');
+        const file = input.files[0];
+        
+        if (file) {
+            // Validação rigorosa de tipo
+            if (file.type !== "image/jpeg") {
+                alert("Erro: Apenas arquivos JPG são permitidos!");
+                input.value = ""; // Limpa o campo
+                preview.style.display = 'none';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Converte o arquivo para Base64 para envio ao servidor
+    async function converterParaBase64(file) {
+        if (!file) return null;
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+        });
+    }
+
+    async function converterParaBase64(file) {
+        if (!file) return null;
+        if (file.type !== "image/jpeg") {
+            alert("Apenas arquivos JPG são aceitos.");
+            return null;
+        }
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
         });
     }
 </script>
