@@ -328,17 +328,42 @@
 
     function renderSugestoes() {
         const div = document.getElementById('render-sugestoes');
-        if(!div) return;
-        div.innerHTML = ideiasAtuais.map((item, i) => `
-            <div class="card-admin" style="background:#2c3e50; border-left-color:#27ae60;">
-                <strong>Sugestão #${i+1}</strong>
-                <div style="margin:10px 0; font-size:13px;">
-                    <strong>P: ${item.pergunta}</strong><br>
-                    ${item.opcoes.map(o => `<div style="${o === item.correta ? 'color:#2ecc71;' : ''}">${o === item.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
+        if (!div) return;
+
+        div.innerHTML = ideiasAtuais.map(ideia => `
+            <div class="card-admin" style="background:#4b6584; border-left: 5px solid #f39c12; margin-bottom: 15px; padding: 15px; position: relative;">
+                
+                ${ideia.imagem ? `
+                    <img src="${ideia.imagem}" style="width:80px; height:80px; object-fit:cover; float:right; border-radius:4px; margin-left:10px; background:#fff; border: 1px solid #ccc;">
+                ` : ''}
+
+                <strong style="font-size: 16px; display: block; margin-bottom: 10px; padding-right: 20px;">${ideia.pergunta}</strong>
+                
+                <div style="font-size:12px; color: #ecf0f1; font-family: monospace; margin-bottom: 15px;">
+                    ${ideia.opcoes.map(o => {
+                        const ehCorreta = (o.trim() === ideia.correta.trim());
+                        return `
+                            <div style="margin-bottom: 3px; ${ehCorreta ? 'color: #f39c12; font-weight: bold;' : 'opacity: 0.8;'}">
+                                ${ehCorreta ? '[X]' : '[&nbsp;&nbsp;]'} ${o}
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
-                <button onclick="aprovarParaBanco(${item.id})" style="background:#27ae60; color:white; border:none; width:100%; border-radius:4px; padding:8px; margin-bottom:5px; font-weight:bold; cursor:pointer;">Adicionar ao banco</button>
-                <button onclick="excluirSugestao(${item.id})" style="background:#e74c3c; color:white; border:none; width:100%; border-radius:4px; padding:5px; cursor:pointer;">Excluir</button>
-            </div>`).join('') || "Vazio.";
+                
+                <div style="display:flex; flex-direction: column; gap:5px;">
+                    <button onclick="aprovarParaBanco(${ideia.id})" 
+                        style="background:#27ae60; color:white; border:none; border-radius:4px; padding:8px; cursor:pointer; font-weight:bold; font-size: 12px;">
+                        Aprovar para banco de questões
+                    </button>
+                    <button onclick="rejeitarIdeia(${ideia.id})" 
+                        style="background:#e74c3c; color:white; border:none; border-radius:4px; padding:5px; cursor:pointer; font-size:11px;">
+                        Rejeitar
+                    </button>
+                </div>
+                
+                <div style="clear:both;"></div>
+            </div>
+        `).join('') || "Nenhuma sugestão pendente.";
     }
 
     async function aprovarParaBanco(id) {

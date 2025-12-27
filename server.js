@@ -44,16 +44,26 @@ app.get('/questoes/listar-banco', (req, res) => res.json(lerJSON(CAMINHO_BANCO_G
 
 app.post('/questoes/adicionar-da-sugestao', (req, res) => {
     const { id } = req.body;
-    let ideias = lerJSON(CAMINHO_IDEIAS);
-    let banco = lerJSON(CAMINHO_BANCO_GERAL);
-    const index = ideias.findIndex(i => i.id === id);
+    let sugestoes = lerJSON(CAMINHO_IDEIAS);
+    let bancoGeral = lerJSON(CAMINHO_BANCO_GERAL);
+
+    // Encontra a sugestão pelo ID
+    const index = sugestoes.findIndex(s => s.id === id);
+
     if (index !== -1) {
-        banco.push({ ...ideias[index], id: Date.now() });
-        ideias.splice(index, 1);
-        salvarJSON(CAMINHO_BANCO_GERAL, banco);
-        salvarJSON(CAMINHO_IDEIAS, ideias);
+        // Remove da lista de sugestões e pega o objeto completo
+        const questaoAprovada = sugestoes.splice(index, 1)[0];
+
+        // Adiciona ao Banco Geral mantendo a imagem e todos os dados
+        bancoGeral.push(questaoAprovada);
+
+        salvarJSON(CAMINHO_IDEIAS, sugestoes);
+        salvarJSON(CAMINHO_BANCO_GERAL, bancoGeral);
+
         res.json({ sucesso: true });
-    } else res.status(404).json({ sucesso: false });
+    } else {
+        res.status(404).json({ erro: "Sugestão não encontrada." });
+    }
 });
 
 app.post('/questoes/ativar', (req, res) => {
