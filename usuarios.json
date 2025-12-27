@@ -1,0 +1,27 @@
+[
+  {
+    "login": "manutencao",
+    "senha": "manutencao",
+    "tipo": "admin"
+  },
+  {
+    "login": "mateus",
+    "senha": "mateus",
+    "tipo": "admin"
+  },
+  {
+    "login": "pedro",
+    "senha": "pedro",
+    "tipo": "user"
+  },
+  {
+    "login": "wagner",
+    "senha": "wagner",
+    "tipo": "user"
+  },
+  {
+    "login": "marcelo",
+    "senha": "marcelo",
+    "tipo": "user"
+  }
+]

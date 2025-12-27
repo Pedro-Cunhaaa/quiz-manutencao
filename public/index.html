@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Treinamento - Painel</title>
+    <style>
+        html, body { min-height: 100%; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        body.modo-admin { justify-content: flex-start; padding-top: 40px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
+        .container-admin { max-width: 1250px; }
+        .escondido { display: none; }
+        .grid-manutencao { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: left; margin-top: 20px; align-items: start; }
+        @media (max-width: 1000px) { .grid-manutencao { grid-template-columns: 1fr; } }
+        .card-admin { background: #34495e; color: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; text-align: left; border-left: 5px solid #3498db; position: relative; }
+        .detalhes-expansiveis { background: #fdfdfd; color: #333; margin-top: 10px; padding: 15px; border-radius: 6px; border-left: 4px solid #3498db; font-size: 13px; max-height: 350px; overflow-y: auto; }
+        .opcao { display: block; width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; cursor: pointer; border: none; color: white; transition: 0.3s; font-size: 14px; font-weight: bold; }
+        .input-edit { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #ddd; box-sizing: border-box; }
+        .coluna-titulo { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; color: #2c3e50; font-size: 18px; }
+        .correto { color: #27ae60; font-weight: bold; } 
+        .errado { color: #e74c3c; font-weight: bold; }
+        .btn-excluir-rel { position: absolute; top: 5px; right: 5px; background: #e74c3c; color: white; border: none; border-radius: 4px; width: 22px; height: 22px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .form-sugestao { text-align: left; margin-top: 20px; background: #eee; padding: 15px; border-radius: 8px; color: #333; }
+        .linha-alternativa { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .footer-creditos { margin-top: 25px; font-size: 14px; color: #2b2f30; border-top: 1px solid #eee; padding-top: 15px; font-style: sans-serif; }
+        .data-badge { font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; }
+        .area-criacao { background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed #d35400; margin-bottom: 20px; color: #333; }
+        .img-pergunta { max-width: 100%; border-radius: 8px; margin: 10px 0; display: block; }
+        .preview-img { width: 100px; height: auto; margin-top: 5px; border-radius: 4px; display: none; }
+    </style>
+</head>
+<body>
+
+<div id="main-container" class="container">
+    <div id="tela-login">
+        <h2>Entrar no Sistema</h2>
+        <input type="text" id="user" placeholder="Usuario" class="input-edit">
+        <input type="password" id="pass" placeholder="Senha" class="input-edit">
+        <button onclick="fazerLogin()" class="opcao" style="background: #27ae60;">Acessar</button>
+    </div>
+
+    <div id="tela-menu" class="escondido">
+        <h2 id="boas-vindas">Bem-vindo</h2>
+        <button onclick="iniciarQuiz()" class="opcao" style="background:#e67e22; font-size:20px; padding:20px;">Iniciar Quiz</button>
+        <button onclick="location.reload()" class="opcao" style="background: #7f8c8d;">Sair</button>
+    </div>
+
+    <div id="tela-quiz" class="escondido">
+        <div id="timer" style="font-size: 40px; color: red;">30</div>
+        <h3 id="texto-pergunta"></h3>
+        <div id="area-opcoes"></div>
+    </div>
+
+    <div id="tela-resultados" class="escondido">
+        <h2 id="titulo-resultados">Painel de Controle</h2>
+        <div id="layout-admin"></div>
+        <button onclick="location.reload()" class="opcao" style="background: #7f8c8d; max-width: 200px; margin: 20px auto;">Sair do Painel (Logout)</button>
+    </div>
+
+    <div class="footer-creditos">Script by Mateus Martins, Pedro Brochi e Wagner Cunha</div>
+</div>
+
+<script>
+    let perguntas = [], indiceAtual = 0, respostasUsuario = {}, cronometro, tempoRestante = 30;
+    let usuarioLogado = "", historicoAdmin = [], ideiasAtuais = [], listaUsuarios = [];
+
+    async function atualizarDadosInterface() {
+        const res = await fetch('/admin/refresh-dados');
+        const dados = await res.json();
+        historicoAdmin = dados.tentativas;
+        ideiasAtuais = dados.ideiasAtuais;
+        listaUsuarios = dados.listaUsuarios;
+        
+        if(usuarioLogado === "manutencao") {
+            renderUsuarios();
+            renderSugestoes();
+        }
+        renderRelatorios('render-relatorios');
+    }
+
+    async function fazerLogin() {
+        const uInput = document.getElementById('user').value.toLowerCase();
+        const sInput = document.getElementById('pass').value;
+        const res = await fetch('/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ usuario: uInput, senha: sInput }) });
+        const dados = await res.json();
+        
+        if(dados.sucesso) {
+            usuarioLogado = uInput;
+            document.getElementById('tela-login').classList.add('escondido');
+            if(dados.tipo === "admin") {
+                document.body.classList.add('modo-admin');
+                historicoAdmin = dados.tentativas;
+                ideiasAtuais = dados.ideiasAtuais;
+                listaUsuarios = dados.listaUsuarios;
+                configurarTelaAdmin();
+            } else {
+                perguntas = dados.perguntas;
+                document.getElementById('boas-vindas').innerText = `Ola, ${usuarioLogado.toUpperCase()}`;
+                document.getElementById('tela-menu').classList.remove('escondido');
+            }
+        } else { alert("Login incorreto."); }
+    }
+
+    function configurarTelaAdmin() {
+        const container = document.getElementById('main-container');
+        const layout = document.getElementById('layout-admin');
+        document.getElementById('tela-resultados').classList.remove('escondido');
+
+        if(usuarioLogado === "manutencao") {
+            container.classList.add('container-admin');
+            layout.innerHTML = `
+                <div class="grid-manutencao">
+                    <div class="coluna">
+                        <button onclick="toggleSecao('sec-users', this, 'Usuarios')" class="opcao" style="background: #9b59b6;">Exibir Usuários</button>
+                        <div id="sec-users" class="escondido">
+                            <div class="coluna-titulo">Usuários</div>
+                            <div id="render-usuarios"></div>
+                            <div style="background:#eee; padding:10px; border-radius:8px; color:#333">
+                                <input id="n-user" class="input-edit" placeholder="Login">
+                                <input id="n-pass" class="input-edit" placeholder="Senha">
+                                <select id="n-tipo" class="input-edit"><option value="user">User</option><option value="admin">Admin</option></select>
+                                <button onclick="addUsuario()" class="opcao" style="background:#27ae60; padding:5px;">Adicionar</button>
+                            </div>
+                        </div>
+                        <button onclick="toggleSecaoQuestoes('sec-questoes', this)" class="opcao" style="background: #e67e22; margin-top:15px;">Exibir Questões do Quiz</button>
+                        <div id="sec-questoes" class="escondido">
+                            <div class="coluna-titulo">Questões Atuais</div>
+                            <div id="render-questoes-atuais"></div>
+                        </div>
+                    </div>
+
+                    <div class="coluna">
+                        <button onclick="toggleSecao('sec-rel', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
+                        <div id="sec-rel" class="escondido"><div class="coluna-titulo">Relatorios</div><div id="render-relatorios"></div></div>
+                        
+                        <button onclick="toggleSecaoBanco('sec-banco-geral', this)" class="opcao" style="background: #d35400; margin-top:15px;">Banco de Questões</button>
+                        <div id="sec-banco-geral" class="escondido">
+                            <div class="coluna-titulo">Banco Geral de Questões</div>
+                            
+                            <button onclick="toggleSecao('area-nova-questao', this, 'Criar Questão')" class="opcao" style="background:#e67e22; font-size:12px;">Criar Questão</button>
+                            <div id="area-nova-questao" class="escondido area-criacao">
+                                <strong>Nova Questão (Direta no Banco)</strong>
+                                <input type="text" id="dir-pergunta" class="input-edit" placeholder="Pergunta">
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"> <input type="text" id="dir-opt-0" class="input-edit" placeholder="Alternativa 1"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"> <input type="text" id="dir-opt-1" class="input-edit" placeholder="Alternativa 2"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="2"> <input type="text" id="dir-opt-2" class="input-edit" placeholder="Alternativa 3"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="3"> <input type="text" id="dir-opt-3" class="input-edit" placeholder="Alternativa 4"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="4"> <input type="text" id="dir-opt-4" class="input-edit" placeholder="Alternativa 5"></div>
+                                <button onclick="salvarQuestaoDireta()" class="opcao" style="background: #27ae60;">Salvar no Banco</button>
+                            </div>
+
+                            <div id="render-banco-geral"></div>
+                        </div>
+                    </div>
+
+                    <div class="coluna">
+                        <button onclick="toggleSecao('sec-sug', this, 'Sugestoes')" class="opcao" style="background: #27ae60;">Exibir Sugestões</button>
+                        <div id="sec-sug" class="escondido"><div class="coluna-titulo">Sugestões</div><div id="render-sugestoes"></div></div>
+                    </div>
+                </div>`;
+            renderUsuarios(); renderRelatorios('render-relatorios'); renderSugestoes();
+        } else {
+            layout.innerHTML = `
+                <button onclick="toggleSecao('sec-rel-mat', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
+                <div id="sec-rel-mat" class="escondido"><div id="render-relatorios"></div></div>
+                <div class="form-sugestao">
+                    <div class="coluna-titulo" style="font-size:14px;">Sugerir Nova Questão</div>
+                    <input type="text" id="sug-pergunta" class="input-edit" placeholder="Pergunta">
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="0"> <input type="text" id="opt-0" class="input-edit" placeholder="Alternativa 1"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="1"> <input type="text" id="opt-1" class="input-edit" placeholder="Alternativa 2"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="2"> <input type="text" id="opt-2" class="input-edit" placeholder="Alternativa 3"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="3" > <input type="text" id="opt-3" class="input-edit" placeholder="Alternativa 4"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta" value="4"> <input type="text" id="opt-4" class="input-edit" placeholder="Alternativa 5"></div>
+                    <button onclick="enviarIdeia()" class="opcao" style="background: #27ae60;">Enviar Sugestão</button>
+                </div>`;
+            renderRelatorios('render-relatorios');
+        }
+    }
+
+    // NOVA FUNÇÃO: Salva a questão criada pela manutenção direto no banco
+    async function salvarQuestaoDireta() {
+        const p = document.getElementById('dir-pergunta').value;
+        const opts = [
+            document.getElementById('dir-opt-0').value, 
+            document.getElementById('dir-opt-1').value, 
+            document.getElementById('dir-opt-2').value, 
+            document.getElementById('dir-opt-3').value, 
+            document.getElementById('dir-opt-4').value
+        ];
+        const cor = document.querySelector('input[name="correta-dir"]:checked');
+        
+        if(!p || !cor) return alert("Preencha a pergunta e selecione a alternativa correta!");
+        
+        const questao = { 
+            pergunta: p, 
+            opcoes: opts, 
+            correta: opts[parseInt(cor.value)] 
+        };
+
+        // Reutilizamos a lógica do servidor: mandamos como ideia e depois aprovamos, 
+        // ou você pode criar uma rota nova. Para facilitar, vamos mandar para o servidor salvar.
+        await fetch('/salvar-ideia', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(questao) 
+        });
+
+        // Como é manutenção, vamos pegar a última ideia salva e já aprovar automaticamente
+        const resRefresh = await fetch('/admin/refresh-dados');
+        const dados = await resRefresh.json();
+        const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
+        
+        await aprovarParaBanco(ultimaIdeia.id);
+        
+        alert("Questão criada e adicionada ao banco com sucesso!");
+        
+        // Limpar campos
+        document.getElementById('dir-pergunta').value = "";
+        document.querySelectorAll('input[name="correta-dir"]').forEach(r => r.checked = false);
+        opts.forEach((_, i) => document.getElementById(`dir-opt-${i}`).value = "");
+        
+        // Fechar área e atualizar lista
+        toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
+    }
+
+    function renderRelatorios(id) {
+        const divAlvo = document.getElementById(id);
+        if(!divAlvo) return;
+        const ordenado = [...historicoAdmin].reverse();
+        
+        let htmlDownload = ordenado.length > 0 ? 
+            `<button onclick="baixarRelatoriosTXT()" class="opcao" style="background: #16a085; margin-bottom: 15px;">📥 Baixar Relatórios (.txt)</button>` : '';
+
+        divAlvo.innerHTML = htmlDownload + ordenado.map((t, i) => {
+            const indexOriginal = historicoAdmin.length - 1 - i;
+            return `
+            <div class="card-admin">
+                ${usuarioLogado === 'manutencao' ? `<button class="btn-excluir-rel" onclick="removerRelatorio(${indexOriginal})">X</button>` : ''}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong>${t.nome.toUpperCase()}</strong>
+                    <span class="data-badge">${t.data}</span>
+                </div>
+                <div>Nota: <span style="color:#f1c40f;">${t.nota}</span></div>
+                <button onclick="toggleSecao('det-${indexOriginal}', this, 'Detalhes')" class="opcao" style="padding:5px; font-size:11px; margin-top:8px; background:#2980b9;">Ver Detalhes</button>
+                <div id="det-${indexOriginal}" class="escondido detalhes-expansiveis">
+                    ${t.detalhes.map(d => `
+                        <div style="margin-bottom:8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                            <strong>${d.pergunta}</strong><br>
+                            Resp: ${d.respostaDada} 
+                            <span class="${d.status ? 'correto' : 'errado'}">
+                                ${d.status ? '(Certa)' : '(Errada)'}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+        }).join('') || "Sem relatorios.";
+    }
+
+    function baixarRelatoriosTXT() {
+        if (historicoAdmin.length === 0) return alert("Não há relatórios para baixar.");
+        let conteudo = "RELATÓRIO DE TREINAMENTO\n====================================\n\n";
+        [...historicoAdmin].reverse().forEach(rel => {
+            conteudo += `USUÁRIO: ${rel.nome.toUpperCase()}\nDATA: ${rel.data}\nNOTA: ${rel.nota}\nDETALHES:\n`;
+            rel.detalhes.forEach(det => {
+                conteudo += `  - P: ${det.pergunta}\n    R: ${det.respostaDada} [${det.status ? 'CORRETA' : 'ERRADA'}]\n`;
+            });
+            conteudo += "\n------------------------------------\n\n";
+        });
+        const blob = new Blob([conteudo], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Relatorios_${new Date().toLocaleDateString().replace(/\//g, '-')}.txt`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+
+    function renderUsuarios() {
+        const div = document.getElementById('render-usuarios');
+        if(!div) return;
+        div.innerHTML = listaUsuarios.map((u, i) => {
+            const isManutencao = u.login === "manutencao";
+            return `
+            <div class="card-admin" style="background:${isManutencao ? '#2d3436' : '#4b6584'};">
+                <input id="edit-u-${i}" class="input-edit" value="${u.login}" ${isManutencao ? 'disabled' : ''}>
+                <input id="edit-p-${i}" class="input-edit" value="${u.senha}">
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button onclick="editUsuario(${i})" style="flex:1; background:#27ae60; border:none; color:white; border-radius:4px; padding:5px; cursor:pointer;">Salvar</button>
+                    ${isManutencao ? '' : `<button onclick="delUsuario(${i})" style="flex:1; background:#e74c3c; border:none; color:white; border-radius:4px; padding:5px; cursor:pointer;">Excluir</button>`}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderSugestoes() {
+        const div = document.getElementById('render-sugestoes');
+        if(!div) return;
+        div.innerHTML = ideiasAtuais.map((item, i) => `
+            <div class="card-admin" style="background:#2c3e50; border-left-color:#27ae60;">
+                <strong>Sugestão #${i+1}</strong>
+                <div style="margin:10px 0; font-size:13px;">
+                    <strong>P: ${item.pergunta}</strong><br>
+                    ${item.opcoes.map(o => `<div style="${o === item.correta ? 'color:#2ecc71;' : ''}">${o === item.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
+                </div>
+                <button onclick="aprovarParaBanco(${item.id})" style="background:#27ae60; color:white; border:none; width:100%; border-radius:4px; padding:8px; margin-bottom:5px; font-weight:bold; cursor:pointer;">Adicionar ao banco</button>
+                <button onclick="excluirSugestao(${item.id})" style="background:#e74c3c; color:white; border:none; width:100%; border-radius:4px; padding:5px; cursor:pointer;">Excluir</button>
+            </div>`).join('') || "Vazio.";
+    }
+
+    async function aprovarParaBanco(id) {
+        await fetch('/questoes/adicionar-da-sugestao', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+        await atualizarDadosInterface();
+        const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+        if (btnBanco && !document.getElementById('sec-banco-geral').classList.contains('escondido')) {
+            document.getElementById('sec-banco-geral').classList.add('escondido');
+            toggleSecaoBanco('sec-banco-geral', btnBanco);
+        }
+    }
+
+    async function ativarQuestao(id) {
+        await fetch('/questoes/ativar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+        const btnQuiz = document.querySelector("button[onclick*='toggleSecaoQuestoes']");
+        const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+        document.getElementById('sec-questoes').classList.add('escondido');
+        document.getElementById('sec-banco-geral').classList.add('escondido');
+        toggleSecaoQuestoes('sec-questoes', btnQuiz);
+        toggleSecaoBanco('sec-banco-geral', btnBanco);
+    }
+
+    async function removerDoQuiz(id) {
+        if(!confirm("Mover para o banco geral?")) return;
+        await fetch('/questoes/remover-do-quiz', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+        const btnQuiz = document.querySelector("button[onclick*='toggleSecaoQuestoes']");
+        const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+        document.getElementById('sec-questoes').classList.add('escondido');
+        document.getElementById('sec-banco-geral').classList.add('escondido');
+        toggleSecaoQuestoes('sec-questoes', btnQuiz);
+        toggleSecaoBanco('sec-banco-geral', btnBanco);
+    }
+
+    async function excluirDoBanco(id) {
+        if(!confirm("Deseja EXCLUIR DEFINITIVAMENTE esta questão do banco?")) return;
+        await fetch('/questoes/excluir-do-banco', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+        const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+        document.getElementById('sec-banco-geral').classList.add('escondido');
+        toggleSecaoBanco('sec-banco-geral', btnBanco);
+    }
+
+    async function addUsuario() {
+        const u = document.getElementById('n-user').value, p = document.getElementById('n-pass').value, t = document.getElementById('n-tipo').value;
+        await fetch('/usuarios/adicionar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ login: u.toLowerCase(), senha: p, tipo: t }) });
+        await atualizarDadosInterface();
+        document.getElementById('n-user').value = ""; document.getElementById('n-pass').value = "";
+    }
+
+    async function editUsuario(i) {
+        const u = document.getElementById(`edit-u-${i}`).value, p = document.getElementById(`edit-p-${i}`).value;
+        await fetch('/usuarios/editar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ index: i, novoLogin: u.toLowerCase(), novaSenha: p, novoTipo: listaUsuarios[i].tipo }) });
+        await atualizarDadosInterface();
+        alert("Salvo!");
+    }
+
+    async function delUsuario(i) {
+        if(!confirm("Excluir?")) return;
+        await fetch('/usuarios/excluir', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ index: i }) });
+        await atualizarDadosInterface();
+    }
+
+    async function excluirSugestao(id) {
+        await fetch('/excluir-ideia', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+        await atualizarDadosInterface();
+    }
+
+    async function removerRelatorio(idx) {
+        if (confirm("Tem certeza que deseja apagar este relatório permanentemente?")) {
+            await fetch('/remover-relatorio', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ indexOriginal: idx }) });
+            await atualizarDadosInterface();
+        }
+    }
+
+    async function toggleSecaoQuestoes(id, btn) {
+        const sec = document.getElementById(id);
+        const divRender = document.getElementById('render-questoes-atuais');
+        if (sec.classList.contains('escondido')) {
+            const res = await fetch('/questoes/listar');
+            const data = await res.json();
+            divRender.innerHTML = data.map(q => `
+                <div class="card-admin" style="background:#4b6584;">
+                    <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})">X</button>
+                    <strong>${q.pergunta}</strong>
+                    <div style="font-size:11px; margin-top:5px; opacity:0.8;">
+                        ${q.opcoes ? q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('') : ''}
+                    </div>
+                </div>`).join('') || "Vazio.";
+            sec.classList.remove('escondido');
+            btn.innerText = "Ocultar Questões do Quiz";
+        } else {
+            sec.classList.add('escondido');
+            btn.innerText = "Exibir Questões do Quiz";
+        }
+    }
+
+    async function toggleSecaoBanco(id, btn) {
+        const sec = document.getElementById(id);
+        const divRender = document.getElementById('render-banco-geral');
+        if (sec.classList.contains('escondido')) {
+            const res = await fetch('/questoes/listar-banco');
+            const data = await res.json();
+            divRender.innerHTML = data.map(q => `
+                <div class="card-admin" style="background:#4b6584; border-left-color:#f39c12;">
+                    <strong>${q.pergunta}</strong>
+                    <div style="font-size:11px; margin-top:5px; opacity:0.8;">
+                        ${q.opcoes ? q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('') : ''}
+                    </div>
+                    <button onclick="ativarQuestao(${q.id})" style="background:#27ae60; color:white; border:none; width:100%; border-radius:4px; padding:8px; margin-top:8px; cursor:pointer; font-weight:bold;">Ativar no Quiz</button>
+                    <button onclick="excluirDoBanco(${q.id})" style="background:#e74c3c; color:white; border:none; width:100%; border-radius:4px; padding:5px; margin-top:5px; cursor:pointer; font-size:11px;">Excluir Permanentemente</button>
+                </div>`).join('') || "Banco vazio.";
+            sec.classList.remove('escondido');
+            btn.innerText = "Ocultar Banco de Questões";
+        } else {
+            sec.classList.add('escondido');
+            btn.innerText = "Exibir Banco de Questões";
+        }
+    }
+
+    function toggleSecao(id, btn, nome) {
+        const sec = document.getElementById(id);
+        if(!sec) return;
+        sec.classList.toggle('escondido');
+        if(btn && btn.tagName === "BUTTON") {
+            btn.innerText = sec.classList.contains('escondido') ? `Exibir ${nome}` : `Ocultar ${nome}`;
+            if(nome === 'Criar Questão') btn.innerText = sec.classList.contains('escondido') ? 'Criar Questão' : 'Cancelar Criação';
+        }
+    }
+
+    function iniciarQuiz() {
+        document.getElementById('tela-menu').classList.add('escondido');
+        document.getElementById('tela-quiz').classList.remove('escondido');
+        indiceAtual = 0; mostrarPergunta();
+    }
+
+    function mostrarPergunta() {
+        if (indiceAtual >= perguntas.length) return finalizarQuiz();
+        clearInterval(cronometro); tempoRestante = 30;
+        document.getElementById('timer').innerText = tempoRestante;
+        const p = perguntas[indiceAtual];
+        document.getElementById('texto-pergunta').innerText = p.pergunta;
+        const area = document.getElementById('area-opcoes'); area.innerHTML = "";
+        p.opcoes.forEach(opt => {
+            const btn = document.createElement('button'); btn.className = 'opcao'; btn.innerText = opt; btn.style.background = "#3498db";
+            btn.onclick = () => { respostasUsuario[p.id] = opt; indiceAtual++; mostrarPergunta(); };
+            area.appendChild(btn);
+        });
+        cronometro = setInterval(() => {
+            tempoRestante--; document.getElementById('timer').innerText = tempoRestante;
+            if(tempoRestante <= 0) { respostasUsuario[p.id] = "N/A"; indiceAtual++; mostrarPergunta(); }
+        }, 1000);
+    }
+
+    async function finalizarQuiz() {
+        clearInterval(cronometro);
+        await fetch('/validar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ usuario: usuarioLogado, respostas: respostasUsuario }) });
+        location.reload();
+    }
+
+    async function enviarIdeia() {
+        const p = document.getElementById('sug-pergunta').value;
+        const opts = [document.getElementById('opt-0').value, document.getElementById('opt-1').value, document.getElementById('opt-2').value, document.getElementById('opt-3').value, document.getElementById('opt-4').value];
+        const cor = document.querySelector('input[name="correta"]:checked');
+        if(!p || !cor) return alert("Preencha tudo!");
+        await fetch('/salvar-ideia', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pergunta: p, opcoes: opts, correta: opts[parseInt(cor.value)] }) });
+        alert("Sugestão enviada!");
+        document.getElementById('sug-pergunta').value = "";
+    }
+</script>
+</body>
+</html>

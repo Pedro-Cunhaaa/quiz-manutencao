@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Industrial Atualizado</title>
+    <style>
+        body {
+            background-color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Estrutura Principal */
+        .rack {
+            display: flex;
+            flex-direction: column;
+            gap: 45px; /* Espaço em branco entre as prateleiras */
+            width: 480px;
+        }
+
+        /* Cada Prateleira */
+        .shelf {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            background-color: #1a1a1a;
+            padding: 20px 15px;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            border-bottom: 4px solid #333;
+        }
+
+        .unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+        }
+
+        .unit-label {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+
+        /* Container de botões superiores */
+        .top-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            background: #000;
+            padding: 5px;
+            border: 1px solid #444;
+            width: 100%;
+        }
+
+        /* Estilo comum para botões pequenos */
+        .btn-small {
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 7px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 2px;
+            text-align: center;
+        }
+
+        /* Container de botões inferiores */
+        .bottom-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-wide {
+            width: 45%;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: bold;
+            border-radius: 2px;
+            color: white;
+        }
+
+        /* CORES E EFEITOS DE BRILHO */
+        
+        /* Verde com Brilho (Igual ao azul) */
+        .green { 
+            background-color: #4CAF50; 
+            box-shadow: 0 0 10px #4CAF50; 
+            color: #000; 
+        }
+
+        /* Vermelho de cima SEM brilho */
+        .red-top { 
+            background-color: #b71c1c; 
+            color: #fff; 
+            box-shadow: none; 
+            border: 1px solid #444;
+        }
+
+        .yellow { 
+            background-color: #FFEB3B; 
+            color: #000; 
+        }
+
+        .grey { 
+            background-color: #333; 
+        }
+        
+        /* Botões de baixo com brilho */
+        .blue-bottom { 
+            background-color: #2196F3; 
+            box-shadow: 0 0 10px #2196F3; 
+        }
+
+        .red-bottom { 
+            background-color: #b71c1c; 
+        }
+
+        .empty { visibility: hidden; }
+    </style>
+</head>
+<body>
+
+<div class="rack">
+    <div class="shelf">
+        <div class="unit">
+            <div class="unit-label">CXS</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">SMA</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">URU</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="shelf">
+        <div class="unit">
+            <div class="unit-label">PEL</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">BAG</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">RGE</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="shelf">
+        <div class="unit">
+            <div class="unit-label">PFO</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">STR</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">ERE</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="shelf">
+        <div class="unit">
+            <div class="unit-label">CAL</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit">
+            <div class="unit-label">STC</div>
+            <div class="top-buttons">
+                <div class="btn-small green">Auto ON</div>
+                <div class="btn-small red-top">RX1</div>
+                <div class="btn-small yellow">RX2</div>
+                <div class="btn-small grey"></div>
+            </div>
+            <div class="bottom-buttons">
+                <div class="btn-wide blue-bottom">MTX1</div>
+                <div class="btn-wide red-bottom">MTX2</div>
+            </div>
+        </div>
+        <div class="unit empty"></div>
+    </div>
+</div>
+
+</body>
+</html>
