@@ -2,86 +2,89 @@ const express = require('express');
 const fs = require('fs');
 const app = express();
 
-app.use(express.json({ limit: '50mb' })); 
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '50mb' })); // Adicionado limite para suportar fotos em Base64
 app.use(express.static('public'));
 
+// Configuração de Caminhos
 const CAMINHO_USUARIOS = './usuarios.json';
 const CAMINHO_HISTORICO = './historico.json';
 const CAMINHO_IDEIAS = './ideias.json';
-const CAMINHO_PERGUNTAS = './perguntas.json'; 
+const CAMINHO_PERGUNTAS = './perguntas.json';
 const CAMINHO_BANCO_GERAL = './banco_geral.json';
 
+// Funções Auxiliares
 const lerJSON = (caminho) => {
     try {
         if (!fs.existsSync(caminho)) fs.writeFileSync(caminho, '[]');
         const conteudo = fs.readFileSync(caminho, 'utf8');
         return conteudo ? JSON.parse(conteudo) : [];
-    } catch (err) { return []; }
+    } catch (err) {
+        return [];
+    }
 };
 
-const salvarJSON = (caminho, dado) => fs.writeFileSync(caminho, JSON.stringify(dado, null, 2));
+const salvarJSON = (caminho, dado) => {
+    fs.writeFileSync(caminho, JSON.stringify(dado, null, 2));
+};
 
-// LOGIN
+// --- ROTAS DE LOGIN ---
+
 app.post('/login', (req, res) => {
     const { usuario, senha } = req.body;
     const usuarios = lerJSON(CAMINHO_USUARIOS);
     const user = usuarios.find(u => u.login === usuario && u.senha === senha);
+
     if (user) {
-        res.json({ 
-            sucesso: true, tipo: user.tipo, 
-            tentativas: lerJSON(CAMINHO_HISTORICO), 
-            ideiasAtuais: lerJSON(CAMINHO_IDEIAS), 
+        res.json({
+            sucesso: true,
+            tipo: user.tipo,
+            tentativas: lerJSON(CAMINHO_HISTORICO),
+            ideiasAtuais: lerJSON(CAMINHO_IDEIAS),
             listaUsuarios: usuarios,
-            perguntas: user.tipo === 'user' ? lerJSON(CAMINHO_PERGUNTAS) : [] 
+            perguntas: user.tipo === 'user' ? lerJSON(CAMINHO_PERGUNTAS) : []
         });
-    } else res.json({ sucesso: false });
+    } else {
+        res.json({ sucesso: false });
+    }
 });
 
-// GESTÃO DE QUESTÕES
+// --- GESTÃO DE QUESTÕES ---
+
 app.get('/questoes/listar', (req, res) => res.json(lerJSON(CAMINHO_PERGUNTAS)));
+
 app.get('/questoes/listar-banco', (req, res) => res.json(lerJSON(CAMINHO_BANCO_GERAL)));
 
 app.post('/questoes/adicionar-da-sugestao', (req, res) => {
     const { id } = req.body;
-    let sugestoes = lerJSON(CAMINHO_IDEIAS);
-    let bancoGeral = lerJSON(CAMINHO_BANCO_GERAL);
-
-    // Encontra a sugestão pelo ID
-    const index = sugestoes.findIndex(s => s.id === id);
+    let ideias = lerJSON(CAMINHO_IDEIAS);
+    let banco = lerJSON(CAMINHO_BANCO_GERAL);
+    const index = ideias.findIndex(i => i.id === id);
 
     if (index !== -1) {
-        // Remove da lista de sugestões e pega o objeto completo
-        const questaoAprovada = sugestoes.splice(index, 1)[0];
-
-        // Adiciona ao Banco Geral mantendo a imagem e todos os dados
-        bancoGeral.push(questaoAprovada);
-
-        salvarJSON(CAMINHO_IDEIAS, sugestoes);
-        salvarJSON(CAMINHO_BANCO_GERAL, bancoGeral);
-
+        // Mantém todos os dados da ideia (incluindo imagem se houver)
+        banco.push({ ...ideias[index], id: Date.now() });
+        ideias.splice(index, 1);
+        salvarJSON(CAMINHO_BANCO_GERAL, banco);
+        salvarJSON(CAMINHO_IDEIAS, ideias);
         res.json({ sucesso: true });
     } else {
-        res.status(404).json({ erro: "Sugestão não encontrada." });
+        res.status(404).json({ sucesso: false });
     }
 });
 
 app.post('/questoes/ativar', (req, res) => {
-    const { id } = req.body;
     let banco = lerJSON(CAMINHO_BANCO_GERAL);
     let perguntasAtivas = lerJSON(CAMINHO_PERGUNTAS);
+    const questao = banco.find(q => q.id === req.body.id);
 
-    const questaoParaAtivar = banco.find(q => q.id === id);
-
-    if (questaoParaAtivar) {
-        perguntasAtivas.push({
-            ...questaoParaAtivar, 
-            id: Date.now() // Gera um novo ID para a instância do quiz
-        });
+    if (questao) {
+        perguntasAtivas.push(questao);
+        banco = banco.filter(q => q.id !== req.body.id);
         salvarJSON(CAMINHO_PERGUNTAS, perguntasAtivas);
+        salvarJSON(CAMINHO_BANCO_GERAL, banco);
         res.json({ sucesso: true });
     } else {
-        res.status(404).json({ erro: "Questão não encontrada" });
+        res.status(404).json({ sucesso: false });
     }
 });
 
@@ -89,16 +92,18 @@ app.post('/questoes/remover-do-quiz', (req, res) => {
     let ativas = lerJSON(CAMINHO_PERGUNTAS);
     let banco = lerJSON(CAMINHO_BANCO_GERAL);
     const questao = ativas.find(q => q.id === req.body.id);
+
     if (questao) {
         banco.push(questao);
         ativas = ativas.filter(q => q.id !== req.body.id);
         salvarJSON(CAMINHO_PERGUNTAS, ativas);
         salvarJSON(CAMINHO_BANCO_GERAL, banco);
         res.json({ sucesso: true });
-    } else res.status(404).json({ sucesso: false });
+    } else {
+        res.status(404).json({ sucesso: false });
+    }
 });
 
-// NOVA ROTA: EXCLUIR DEFINITIVAMENTE DO BANCO
 app.post('/questoes/excluir-do-banco', (req, res) => {
     let banco = lerJSON(CAMINHO_BANCO_GERAL);
     const novoBanco = banco.filter(q => q.id !== req.body.id);
@@ -106,7 +111,8 @@ app.post('/questoes/excluir-do-banco', (req, res) => {
     res.json({ sucesso: true });
 });
 
-// USUÁRIOS E RELATÓRIOS
+// --- USUÁRIOS E RELATÓRIOS ---
+
 app.post('/usuarios/adicionar', (req, res) => {
     const u = lerJSON(CAMINHO_USUARIOS);
     u.push(req.body);
@@ -117,7 +123,7 @@ app.post('/usuarios/adicionar', (req, res) => {
 app.post('/usuarios/editar', (req, res) => {
     let u = lerJSON(CAMINHO_USUARIOS);
     const { index, novoLogin, novaSenha, novoTipo } = req.body;
-    if(u[index]) {
+    if (u[index]) {
         u[index] = { login: novoLogin, senha: novaSenha, tipo: novoTipo };
         salvarJSON(CAMINHO_USUARIOS, u);
     }
@@ -135,19 +141,26 @@ app.post('/validar', (req, res) => {
     const { usuario, respostas } = req.body;
     const banco = lerJSON(CAMINHO_PERGUNTAS);
     let acertos = 0;
+
     let detalhes = banco.map(p => {
         const resp = respostas[p.id];
         const ok = String(resp) === String(p.correta);
         if (ok) acertos++;
-        return { pergunta: p.pergunta, respostaDada: resp || "N/A", status: ok };
+        return {
+            pergunta: p.pergunta,
+            respostaDada: resp || "N/A",
+            status: ok
+        };
     });
+
     const hist = lerJSON(CAMINHO_HISTORICO);
-    hist.push({ 
-        nome: usuario, 
-        nota: `${acertos}/${banco.length}`, 
-        data: new Date().toLocaleString('pt-BR'), 
-        detalhes 
+    hist.push({
+        nome: usuario,
+        nota: `${acertos}/${banco.length}`,
+        data: new Date().toLocaleString('pt-BR'),
+        detalhes
     });
+
     salvarJSON(CAMINHO_HISTORICO, hist);
     res.json({ sucesso: true });
 });
@@ -158,6 +171,8 @@ app.post('/remover-relatorio', (req, res) => {
     salvarJSON(CAMINHO_HISTORICO, h);
     res.json({ sucesso: true });
 });
+
+// --- SUGESTÕES (IDEIAS) ---
 
 app.post('/salvar-ideia', (req, res) => {
     const i = lerJSON(CAMINHO_IDEIAS);
@@ -173,22 +188,27 @@ app.post('/excluir-ideia', (req, res) => {
 });
 
 app.get('/admin/refresh-dados', (req, res) => {
-    res.json({ 
-        tentativas: lerJSON(CAMINHO_HISTORICO), 
-        ideiasAtuais: lerJSON(CAMINHO_IDEIAS), 
+    res.json({
+        tentativas: lerJSON(CAMINHO_HISTORICO),
+        ideiasAtuais: lerJSON(CAMINHO_IDEIAS),
         listaUsuarios: lerJSON(CAMINHO_USUARIOS)
     });
 });
 
-// EXCLUIR A LINHA ABAIXO QUANDO FOR COLOCAR NA MAQUINA DEDICADA
-app.listen(3000, () => console.log("Servidor em http://localhost:3000"));
+// --- INICIALIZAÇÃO DO SERVIDOR ---
 
-/*
-ADICIONAR O CÓDIGO ABAIXO QUANDO FOR COLOCAR NA MAQUINA DEDICADA
-const PORT = 3000; 
-const IP_SERVIDOR = '0.0.0.0'; 
+const PORT = 3000;
 
+// Para rodar localmente
+app.listen(PORT, () => {
+    console.log(`Servidor rodando em http://localhost:${PORT}`);
+});
+
+/* PARA PRODUÇÃO (MÁQUINA DEDICADA):
+Substitua o trecho acima por:
+
+const IP_SERVIDOR = '0.0.0.0';
 app.listen(PORT, IP_SERVIDOR, () => {
-    console.log(`Servidor rodando em http://IP DA MAQUINA AQUIIIII:${PORT}`);
+    console.log(`Servidor rodando em http://SEU_IP_AQUI:${PORT}`);
 });
 */
