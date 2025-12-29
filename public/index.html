@@ -800,19 +800,86 @@
             location.reload();
         }
 
+        // Local: Dentro do script no index.html
         function renderizarBanco(questoes) {
-            const container = document.getElementById('sec-banco');
-            container.innerHTML = questoes.map(q => `
-                <div class="card-admin">
-                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; background:#fff; border-radius:4px; margin-bottom:10px;">` : ''}
-                    
-                    <strong>${q.pergunta}</strong>
-                    <div class="opcoes-lista">
-                        ${q.opcoes.map(opt => `<div>[${opt === q.correta ? 'X' : ' '}] ${opt}</div>`).join('')}
+            const container = document.getElementById('render-banco-geral'); // Verifica o ID no teu HTML
+            container.innerHTML = ""; // Limpa o container
+
+            questoes.forEach(q => {
+                // O PASSO 3 É APLICADO AQUI:
+                const card = `
+                    <div class="card-admin">
+                        ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; border-radius:5px; margin-bottom:10px;">` : ''}
+                        <p><strong>Questão:</strong> ${q.pergunta}</p>
+                        <div class="opcoes-preview">
+                            ${q.opcoes.map(opt => `<div>[${opt === q.correta ? 'X' : ' '}] ${opt}</div>`).join('')}
+                        </div>
+                        <button onclick="ativarQuestao('${q.id}')" class="btn-ativar">Ativar no Quiz</button>
+                        <button onclick="excluirPermanente('${q.id}')" class="btn-excluir">Excluir</button>
                     </div>
-                    
-                    <button onclick="ativarQuestao(${q.id})" class="opcao" style="background:var(--success)">Ativar no Quiz</button>
-                    <button onclick="excluirDoBanco(${q.id})" class="opcao" style="background:var(--danger)">Excluir Permanentemente</button>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        async function criarQuestaoComFoto(tipo) {
+            // 1. Captura dos elementos básicos
+            const pergunta = document.getElementById(tipo === 'sugestao' ? 'sug-pergunta' : 'admin-pergunta').value;
+            const fotoInput = document.getElementById(tipo === 'sugestao' ? 'input-foto-sug' : 'input-foto-admin');
+            
+            if (!pergunta) return alert("Digite a pergunta!");
+
+            let imagemBase64 = null;
+
+            // 2. Processamento opcional da imagem
+            if (fotoInput && fotoInput.files[0]) {
+                try {
+                    imagemBase64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(fotoInput.files[0]);
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = error => reject(error);
+                    });
+                } catch (err) {
+                    console.error("Erro na imagem:", err);
+                }
+            }
+
+            // 3. Montagem do objeto (Certifique-se que os campos batem com seu back-end)
+            const novaQuestao = {
+                pergunta: pergunta,
+                imagem: imagemBase64, // Campo que o Quiz e o Banco vão ler
+                opcoes: [/* pegue aqui seus inputs de opções */],
+                correta: "valor_da_correta"
+            };
+
+            // 4. Envio para a rota correta
+            const rota = tipo === 'sugestao' ? '/salvar-ideia' : '/questoes/adicionar';
+            
+            try {
+                const res = await fetch(rota, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(novaQuestao)
+                });
+                
+                if (res.ok) {
+                    alert("Sucesso!");
+                    location.reload();
+                }
+            } catch (error) {
+                alert("Erro ao conectar com o servidor.");
+            }
+        }
+
+        function renderizarSugestoes(ideias) {
+            const container = document.getElementById('container-sugestoes');
+            container.innerHTML = ideias.map(i => `
+                <div class="card-sugestao" style="background: #e8f5e9; border: 1px solid #2ecc71; padding: 10px; margin-bottom: 10px;">
+                    ${i.imagem ? `<img src="${i.imagem}" style="width:100%; max-height:100px; object-fit:contain;">` : ''}
+                    <p>${i.pergunta}</p>
+                    <button onclick="aprovarSugestao('${i.id}')">Aprovar</button>
+                    <button onclick="rejeitarSugestao('${i.id}')">Rejeitar</button>
                 </div>
             `).join('');
         }
