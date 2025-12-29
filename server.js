@@ -62,60 +62,97 @@ app.get('/questoes/listar', (req, res) => res.json(lerJSON(CAMINHO_PERGUNTAS)));
 app.get('/questoes/listar-banco', (req, res) => res.json(lerJSON(CAMINHO_BANCO_GERAL)));
 
 app.post('/questoes/adicionar-da-sugestao', (req, res) => {
-    const { id } = req.body;
-    let ideias = lerJSON(CAMINHO_IDEIAS);
-    let banco = lerJSON(CAMINHO_BANCO_GERAL);
-    const index = ideias.findIndex(i => i.id === id);
+    try {
+        const idProcurado = Number(req.body.id);
+        let ideias = lerJSON(CAMINHO_IDEIAS);
+        let banco = lerJSON(CAMINHO_BANCO_GERAL);
+        
+        const index = ideias.findIndex(i => Number(i.id) === idProcurado);
 
-    if (index !== -1) {
-        // Mantém todos os dados da ideia (incluindo imagem se houver)
-        banco.push({ ...ideias[index], id: Date.now() });
-        ideias.splice(index, 1);
-        salvarJSON(CAMINHO_BANCO_GERAL, banco);
-        salvarJSON(CAMINHO_IDEIAS, ideias);
-        res.json({ sucesso: true });
-    } else {
-        res.status(404).json({ sucesso: false });
+        if (index !== -1) {
+            // Mantém a imagem e todos os dados, apenas move de arquivo
+            banco.push(ideias[index]); 
+            ideias.splice(index, 1);
+            
+            salvarJSON(CAMINHO_BANCO_GERAL, banco);
+            salvarJSON(CAMINHO_IDEIAS, ideias);
+            res.json({ sucesso: true });
+        } else {
+            res.status(404).json({ sucesso: false, mensagem: "Sugestão não encontrada." });
+        }
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
     }
 });
 
 app.post('/questoes/ativar', (req, res) => {
-    let banco = lerJSON(CAMINHO_BANCO_GERAL);
-    let perguntasAtivas = lerJSON(CAMINHO_PERGUNTAS);
-    const questao = banco.find(q => q.id === req.body.id);
+    try {
+        let banco = lerJSON(CAMINHO_BANCO_GERAL);
+        let perguntasAtivas = lerJSON(CAMINHO_PERGUNTAS);
+        
+        // Garantimos que o ID seja tratado como número para a comparação
+        const idProcurado = Number(req.body.id);
+        const questao = banco.find(q => Number(q.id) === idProcurado);
 
-    if (questao) {
-        perguntasAtivas.push(questao);
-        banco = banco.filter(q => q.id !== req.body.id);
-        salvarJSON(CAMINHO_PERGUNTAS, perguntasAtivas);
-        salvarJSON(CAMINHO_BANCO_GERAL, banco);
-        res.json({ sucesso: true });
-    } else {
-        res.status(404).json({ sucesso: false });
+        if (questao) {
+            perguntasAtivas.push(questao);
+            const novoBanco = banco.filter(q => Number(q.id) !== idProcurado);
+            
+            salvarJSON(CAMINHO_PERGUNTAS, perguntasAtivas);
+            salvarJSON(CAMINHO_BANCO_GERAL, novoBanco);
+            res.json({ sucesso: true });
+        } else {
+            res.status(404).json({ sucesso: false, mensagem: "Questão não encontrada no banco." });
+        }
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
     }
 });
 
 app.post('/questoes/remover-do-quiz', (req, res) => {
-    let ativas = lerJSON(CAMINHO_PERGUNTAS);
-    let banco = lerJSON(CAMINHO_BANCO_GERAL);
-    const questao = ativas.find(q => q.id === req.body.id);
+    try {
+        let ativas = lerJSON(CAMINHO_PERGUNTAS);
+        let banco = lerJSON(CAMINHO_BANCO_GERAL);
+        
+        // Convertemos ambos para Number para garantir que a comparação funcione
+        const idProcurado = Number(req.body.id);
+        const questao = ativas.find(q => Number(q.id) === idProcurado);
 
-    if (questao) {
-        banco.push(questao);
-        ativas = ativas.filter(q => q.id !== req.body.id);
-        salvarJSON(CAMINHO_PERGUNTAS, ativas);
-        salvarJSON(CAMINHO_BANCO_GERAL, banco);
-        res.json({ sucesso: true });
-    } else {
-        res.status(404).json({ sucesso: false });
+        if (questao) {
+            // Adiciona ao banco
+            banco.push(questao);
+            
+            // Remove das ativas
+            const novasAtivas = ativas.filter(q => Number(q.id) !== idProcurado);
+            
+            salvarJSON(CAMINHO_PERGUNTAS, novasAtivas);
+            salvarJSON(CAMINHO_BANCO_GERAL, banco);
+            
+            res.json({ sucesso: true });
+        } else {
+            res.status(404).json({ sucesso: false, mensagem: "Questão não encontrada nas ativas." });
+        }
+    } catch (err) {
+        console.error("Erro ao mover questão:", err);
+        res.status(500).json({ sucesso: false, erro: err.message });
     }
 });
 
+// Rota para excluir questão do Banco Geral
 app.post('/questoes/excluir-do-banco', (req, res) => {
-    let banco = lerJSON(CAMINHO_BANCO_GERAL);
-    const novoBanco = banco.filter(q => q.id !== req.body.id);
-    salvarJSON(CAMINHO_BANCO_GERAL, novoBanco);
-    res.json({ sucesso: true });
+    const { id } = req.body;
+    try {
+        let banco = JSON.parse(fs.readFileSync('./banco_geral.json', 'utf8'));
+        
+        // Filtra removendo a questão com o ID correspondente
+        // Usamos Number(id) para garantir a comparação correta
+        const novoBanco = banco.filter(q => Number(q.id) !== Number(id));
+        
+        fs.writeFileSync('./banco_geral.json', JSON.stringify(novoBanco, null, 2));
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
+    }
 });
 
 // --- USUÁRIOS E RELATÓRIOS ---
@@ -195,11 +232,17 @@ app.post('/excluir-ideia', (req, res) => {
 });
 
 app.get('/admin/refresh-dados', (req, res) => {
-    res.json({
-        tentativas: lerJSON(CAMINHO_HISTORICO),
-        ideiasAtuais: lerJSON(CAMINHO_IDEIAS),
-        listaUsuarios: lerJSON(CAMINHO_USUARIOS)
-    });
+    try {
+        res.json({
+            tentativas: JSON.parse(fs.readFileSync('./historico.json', 'utf8') || '[]'),
+            ideiasAtuais: JSON.parse(fs.readFileSync('./ideias.json', 'utf8') || '[]'),
+            listaUsuarios: JSON.parse(fs.readFileSync('./usuarios.json', 'utf8') || '[]'),
+            bancoGeral: JSON.parse(fs.readFileSync('./banco_geral.json', 'utf8') || '[]'),
+            perguntasQuiz: JSON.parse(fs.readFileSync('./perguntas.json', 'utf8') || '[]')
+        });
+    } catch (err) {
+        res.status(500).json({ erro: "Erro ao ler arquivos" });
+    }
 });
 
 // --- INICIALIZAÇÃO DO SERVIDOR ---

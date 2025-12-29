@@ -248,19 +248,64 @@
             listaUsuarios = [];
 
         async function atualizarDadosInterface() {
-            const res = await fetch('/admin/refresh-dados');
-            const dados = await res.json();
-            historicoAdmin = dados.tentativas;
-            ideiasAtuais = dados.ideiasAtuais;
-            listaUsuarios = dados.listaUsuarios;
+            try {
+                const res = await fetch('/admin/refresh-dados');
+                const dados = await res.json();
 
-            if (usuarioLogado === "manutencao") {
-                renderUsuarios();
-                renderSugestoes();
+                // 1. Atualiza as variáveis globais com os dados vindos do servidor
+                historicoAdmin = dados.tentativas;
+                ideiasAtuais = dados.ideiasAtuais;
+                listaUsuarios = dados.listaUsuarios;
+                
+                // ADICIONADO: Atualiza também o banco e as questões do quiz para a Manutenção
+                if (typeof dados.bancoGeral !== 'undefined') {
+                    questoesBanco = dados.bancoGeral; 
+                }
+                if (typeof dados.perguntasQuiz !== 'undefined') {
+                    perguntasAtuais = dados.perguntasQuiz;
+                }
+
+                // 2. Re-renderiza as partes da interface que estão visíveis
+                if (usuarioLogado === "manutencao") {
+                    renderUsuarios();
+                    renderSugestoes();
+                    
+                    // Se as seções de Questões ou Banco estiverem abertas, elas precisam ser atualizadas
+                    if (!document.getElementById('sec-questoes').classList.contains('escondido')) {
+                        renderQuestoesAtuais(perguntasAtuais);
+                    }
+                    if (!document.getElementById('sec-banco-geral').classList.contains('escondido')) {
+                        renderBanco(questoesBanco);
+                    }
+                }
+                
+                // Relatórios são comuns a Mateus e Manutenção
+                renderRelatorios('render-relatorios');
+
+            } catch (err) {
+                console.error("Erro ao sincronizar dados:", err);
             }
-            renderRelatorios('render-relatorios');
         }
 
+        function renderQuestoesAtuais(questoes) {
+            const div = document.getElementById('render-questoes-atuais');
+            if (!div) return;
+
+            div.innerHTML = questoes.map((q, i) => `
+                <div class="card-admin" style="background:#34495e; position: relative;">
+                    <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})" 
+                            style="position:absolute; top:5px; right:5px; background:#e74c3c; border-radius:4px; border:none; color:white; cursor:pointer; width:22px; height:22px;">X</button>
+                    
+                    <strong>Questão ${i + 1}</strong>
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; margin:10px 0; background:white;">` : ''}
+                    
+                    <p style="margin:5px 0;">${q.pergunta}</p>
+                    <div style="font-size:12px; color:#bdc3c7;">
+                        ${q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
+                    </div>
+                </div>
+            `).join('') || "Nenhuma questão ativa.";
+        }
         async function fazerLogin() {
             const uInput = document.getElementById('user').value.toLowerCase();
             const sInput = document.getElementById('pass').value;
@@ -320,6 +365,7 @@
                             <div id="render-questoes-atuais"></div>
                         </div>
                     </div>
+
                     <div class="coluna">
                         <button onclick="toggleSecao('sec-rel', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
                         <div id="sec-rel" class="escondido">
@@ -330,22 +376,31 @@
                         <div id="sec-banco-geral" class="escondido">
                             <div class="coluna-titulo">Banco Geral de Questões</div>
                             <button onclick="toggleSecao('area-nova-questao', this, 'Criar Questão')" class="opcao" style="background:#e67e22; font-size:12px;">Criar Questão</button>
+                            
                             <div id="area-nova-questao" class="escondido area-criacao">
                                 <strong>Nova Questão (Direta no Banco)</strong>
+                                <input type="text" id="admin-pergunta" class="input-edit" placeholder="Pergunta">
+                                
                                 <label style="display:block; margin-top:10px; font-size:12px;">Foto (Opcional):</label>
-                                <input type="file" id="input-foto" class="input-edit" accept="image/jpeg" onchange="Utils.preview(this)">
-                                <img id="preview-img" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-bottom:10px; border-radius:4px;">
-                                <input type="text" id="dir-pergunta" class="input-edit" placeholder="Pergunta">
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"> <input type="text" id="dir-opt-0" class="input-edit" placeholder="Alternativa 1"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"> <input type="text" id="dir-opt-1" class="input-edit" placeholder="Alternativa 2"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="2"> <input type="text" id="dir-opt-2" class="input-edit" placeholder="Alternativa 3"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="3"> <input type="text" id="dir-opt-3" class="input-edit" placeholder="Alternativa 4"></div>
-                                <div class="linha-alternativa"><input type="radio" name="correta-dir" value="4"> <input type="text" id="dir-opt-4" class="input-edit" placeholder="Alternativa 5"></div>
-                                <button onclick="salvarQuestaoDireta()" class="opcao" style="background: #27ae60;">Salvar no Banco</button>
+                                <div style="position: relative;">
+                                    <input type="file" id="input-foto-admin" class="input-edit" accept="image/*" onchange="gerenciarPreview(this, 'preview-admin', 'btn-del-admin')">
+                                    <img id="preview-admin" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-top:10px; border-radius:4px;">
+                                    <button id="btn-del-admin" type="button" onclick="removerFoto('input-foto-admin', 'preview-admin', 'btn-del-admin')" 
+                                        style="display:none; position: absolute; top: 45px; right: 5px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer;">X</button>
+                                </div>
+
+                                <div class="linha-alternativa"><input type="radio" name="correta-admin" value="0"> <input type="text" id="admin-opt-0" class="input-edit" placeholder="Alternativa 1"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-admin" value="1"> <input type="text" id="admin-opt-1" class="input-edit" placeholder="Alternativa 2"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-admin" value="2"> <input type="text" id="admin-opt-2" class="input-edit" placeholder="Alternativa 3"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-admin" value="3"> <input type="text" id="admin-opt-3" class="input-edit" placeholder="Alternativa 4"></div>
+                                <div class="linha-alternativa"><input type="radio" name="correta-admin" value="4"> <input type="text" id="admin-opt-4" class="input-edit" placeholder="Alternativa 5"></div>
+                                
+                                <button onclick="salvarQuestao('admin')" class="opcao" style="background: #27ae60;">Salvar no Banco</button>
                             </div>
                             <div id="render-banco-geral"></div>
                         </div>
                     </div>
+
                     <div class="coluna">
                         <button onclick="toggleSecao('sec-sug', this, 'Sugestoes')" class="opcao" style="background: #27ae60;">Exibir Sugestões</button>
                         <div id="sec-sug" class="escondido">
@@ -358,6 +413,7 @@
                 renderRelatorios('render-relatorios');
                 renderSugestoes();
             } else {
+                // Bloco para Mateus (já ajustado anteriormente)
                 layout.innerHTML = `
                 <button onclick="toggleSecao('sec-rel-mat', this, 'Relatórios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
                 <div id="sec-rel-mat" class="escondido"><div id="render-relatorios"></div></div>
@@ -370,7 +426,7 @@
                     <div style="position: relative;">
                         <input type="file" id="input-foto-sug" class="input-edit" accept="image/*" onchange="gerenciarPreview(this, 'preview-sug', 'btn-del-sug')">
                         <img id="preview-sug" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-top:10px; border-radius:4px;">
-                        <button id="btn-del-sug" onclick="removerFoto('input-foto-sug', 'preview-sug', this)" 
+                        <button id="btn-del-sug" type="button" onclick="removerFoto('input-foto-sug', 'preview-sug', 'btn-del-sug')" 
                             style="display:none; position: absolute; top: 45px; right: 5px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer;">X</button>
                     </div>
 
@@ -380,24 +436,42 @@
                     <div class="linha-alternativa"><input type="radio" name="correta-sug" value="3"> <input type="text" id="opt-sug-3" class="input-edit" placeholder="Alternativa 4"></div>
                     <div class="linha-alternativa"><input type="radio" name="correta-sug" value="4"> <input type="text" id="opt-sug-4" class="input-edit" placeholder="Alternativa 5"></div>
                     
-                    <button onclick="enviarIdeia()" class="opcao" style="background: #27ae60;">Enviar Sugestão</button>
+                    <button onclick="salvarQuestao('sugestao')" class="opcao" style="background: #27ae60;">Enviar Sugestão</button>
                 </div>`;
                 renderRelatorios('render-relatorios');
             }
         }
 
         async function salvarQuestao(tipo) {
-            const isSugestao = tipo === 'sugestao';
-            const sufixo = isSugestao ? 'sug' : 'admin';
+            // Define qual prefixo usar baseado no tipo de usuário
+            const prefixo = tipo === 'admin' ? 'admin' : 'sug';
             
-            const pergunta = document.getElementById(`pergunta-${sufixo}`).value;
-            const fotoInput = document.getElementById(`input-foto-${sufixo}`);
+            // Tenta capturar a pergunta (tenta o ID novo ou o ID antigo 'dir-pergunta')
+            const perguntaElem = document.getElementById(`${prefixo}-pergunta`) || document.getElementById('dir-pergunta') || document.getElementById('sug-pergunta');
             
-            if (!pergunta) return alert("Preencha a pergunta!");
+            // Tenta capturar o input de foto
+            const fotoInput = document.getElementById(`input-foto-${prefixo}`) || document.getElementById('input-foto-sug') || document.getElementById('input-foto');
+            
+            // Tenta capturar qual radio está marcado
+            const corretaRadio = document.querySelector(`input[name="correta-${prefixo}"]:checked`) || document.querySelector(`input[name="correta-sug"]:checked`) || document.querySelector(`input[name="correta-dir"]:checked`);
+
+            // Validação de segurança
+            if (!perguntaElem || !corretaRadio) {
+                return alert("Erro: Não foi possível localizar os campos do formulário. Verifique os IDs.");
+            }
+
+            const pergunta = perguntaElem.value;
+            const indiceCorreta = corretaRadio.value;
+            
+            // Tenta capturar o texto da alternativa correta usando IDs dinâmicos
+            const optIdBase = tipo === 'admin' ? 'admin-opt-' : (document.getElementById('opt-sug-0') ? 'opt-sug-' : 'opt-');
+            const textoCorretaElem = document.getElementById(`${optIdBase}${indiceCorreta}`) || document.getElementById(`dir-opt-${indiceCorreta}`);
+            
+            if (!textoCorretaElem) return alert("Erro ao encontrar o texto da alternativa selecionada.");
+            const textoCorreta = textoCorretaElem.value;
 
             let imagemBase64 = null;
-            if (fotoInput.files[0]) {
-                // Converte a imagem para texto antes de enviar
+            if (fotoInput && fotoInput.files[0]) {
                 imagemBase64 = await new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target.result);
@@ -405,35 +479,36 @@
                 });
             }
 
-            const dados = {
-                pergunta,
+            // Monta o objeto final
+            const payload = {
+                id: Date.now(), // Gera um ID único baseado no tempo
+                pergunta: pergunta,
                 imagem: imagemBase64,
-                opcoes: [
-                    document.getElementById(`opt1-${sufixo}`).value,
-                    document.getElementById(`opt2-${sufixo}`).value,
-                    document.getElementById(`opt3-${sufixo}`).value,
-                    document.getElementById(`opt4-${sufixo}`).value,
-                    document.getElementById(`opt5-${sufixo}`).value
-                ],
-                correta: document.querySelector(`input[name="correta-${sufixo}"]:checked`)?.value
+                opcoes: [],
+                correta: textoCorreta
             };
 
-            if (!dados.correta) return alert("Selecione a resposta correta!");
+            // Preenche as opções dinamicamente
+            for (let i = 0; i < 5; i++) {
+                const opt = document.getElementById(`${optIdBase}${i}`) || document.getElementById(`dir-opt-${i}`) || document.getElementById(`opt-sug-${i}`);
+                if (opt) payload.opcoes.push(opt.value);
+            }
 
-            const rota = isSugestao ? '/salvar-ideia' : '/questoes/adicionar';
-            
+            const rota = tipo === 'admin' ? '/questoes/adicionar' : '/salvar-ideia';
+
             try {
                 const res = await fetch(rota, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dados)
+                    body: JSON.stringify(payload)
                 });
+
                 if (res.ok) {
-                    alert("Enviado com sucesso!");
+                    alert("Sucesso!");
                     location.reload();
                 }
             } catch (err) {
-                alert("Erro ao conectar com o servidor.");
+                alert("Erro de conexão com o servidor.");
             }
         }
 
@@ -512,26 +587,48 @@
             div.innerHTML = ideiasAtuais.map((item, i) => `
             <div class="card-admin" style="background:#2c3e50; border-left-color:#27ae60;">
                 <strong>Sugestão #${i + 1}</strong>
+                ${item.imagem ? `<img src="${item.imagem}" style="width:100%; max-height:150px; object-fit:contain; border-radius:4px; margin-top:10px; background:white;">` : ''}
+                
                 <div style="margin:10px 0; font-size:13px;">
                     <strong>P: ${item.pergunta}</strong><br>
-                    ${item.opcoes.map(o => `<div style="${o === item.correta ? 'color:#2ecc71;' : ''}">${o === item.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
+                    ${item.opcoes.map(o => `
+                        <div style="${o === item.correta ? 'color:#2ecc71; font-weight:bold;' : ''}">
+                            ${o === item.correta ? '[X]' : '[ ]'} ${o}
+                        </div>
+                    `).join('')}
                 </div>
-                <button onclick="aprovarParaBanco(${item.id})" style="background:#27ae60; color:white; border:none; width:100%; border-radius:4px; padding:8px; margin-bottom:5px; font-weight:bold; cursor:pointer;">Adicionar ao banco</button>
-                <button onclick="excluirSugestao(${item.id})" style="background:#e74c3c; color:white; border:none; width:100%; border-radius:4px; padding:5px; cursor:pointer;">Excluir</button>
+                <button onclick="aprovarParaBanco(${item.id})" class="opcao" style="background:#27ae60; margin-bottom:5px;">Adicionar ao banco</button>
+                <button onclick="excluirSugestao(${item.id})" class="opcao" style="background:#e74c3c;">Excluir</button>
             </div>`).join('') || "Vazio.";
         }
 
         async function aprovarParaBanco(id) {
-            await fetch('/questoes/adicionar-da-sugestao', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-            await atualizarDadosInterface();
-            const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
-            if (btnBanco && !document.getElementById('sec-banco-geral').classList.contains('escondido')) {
-                document.getElementById('sec-banco-geral').classList.add('escondido');
-                toggleSecaoBanco('sec-banco-geral', btnBanco);
+            try {
+                const res = await fetch('/questoes/adicionar-da-sugestao', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+
+                if (res.ok) {
+                    alert("Questão aprovada e enviada ao Banco Geral!");
+                    
+                    // 1. Atualiza os dados locais (ideiasAtuais, etc) vindo do servidor
+                    await atualizarDadosInterface(); 
+                    
+                    // 2. Renderiza novamente as colunas afetadas
+                    renderSugestoes(); 
+                    
+                    // 3. Se o banco estiver aberto, atualiza ele também
+                    const secBanco = document.getElementById('sec-banco-geral');
+                    if (secBanco && !secBanco.classList.contains('escondido')) {
+                        // Chama a função que busca e renderiza o banco
+                        const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+                        toggleSecaoBanco('sec-banco-geral', btnBanco); 
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao aprovar:", err);
             }
         }
 
@@ -550,30 +647,77 @@
         }
 
         async function removerDoQuiz(id) {
-            if (!confirm("Mover para o banco geral?")) return;
-            await fetch('/questoes/remover-do-quiz', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-            const btnQuiz = document.querySelector("button[onclick*='toggleSecaoQuestoes']");
-            const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
-            document.getElementById('sec-questoes').classList.add('escondido');
-            document.getElementById('sec-banco-geral').classList.add('escondido');
-            toggleSecaoQuestoes('sec-questoes', btnQuiz);
-            toggleSecaoBanco('sec-banco-geral', btnBanco);
+            if (!confirm("Deseja tirar esta questão do Quiz e movê-la de volta para o banco geral?")) return;
+
+            try {
+                const res = await fetch('/questoes/remover-do-quiz', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+
+                if (res.ok) {
+                    alert("Questão movida para o banco com sucesso!");
+
+                    // 1. Sincroniza os dados do servidor com as variáveis locais (importante!)
+                    await atualizarDadosInterface();
+
+                    // 2. Localiza os botões para resetar a visualização
+                    const btnQuiz = document.querySelector("button[onclick*='toggleSecaoQuestoes']");
+                    const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+
+                    // 3. Reseta as seções para forçar o redesenho com os novos dados
+                    const secQuestoes = document.getElementById('sec-questoes');
+                    const secBanco = document.getElementById('sec-banco-geral');
+
+                    if (secQuestoes) {
+                        secQuestoes.classList.add('escondido');
+                        if (btnQuiz) toggleSecaoQuestoes('sec-questoes', btnQuiz);
+                    }
+
+                    if (secBanco) {
+                        secBanco.classList.add('escondido');
+                        if (btnBanco) toggleSecaoBanco('sec-banco-geral', btnBanco);
+                    }
+                } else {
+                    alert("Erro ao remover questão no servidor.");
+                }
+            } catch (err) {
+                console.error("Erro na requisição:", err);
+                alert("Erro de conexão.");
+            }
         }
 
         async function excluirDoBanco(id) {
             if (!confirm("Deseja EXCLUIR DEFINITIVAMENTE esta questão do banco?")) return;
-            await fetch('/questoes/excluir-do-banco', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-            const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
-            document.getElementById('sec-banco-geral').classList.add('escondido');
-            toggleSecaoBanco('sec-banco-geral', btnBanco);
+            
+            try {
+                const res = await fetch('/questoes/excluir-do-banco', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+
+                if (res.ok) {
+                    alert("Questão removida com sucesso!");
+                    
+                    // Importante: Atualiza os dados globais antes de re-renderizar
+                    await atualizarDadosInterface(); 
+                    
+                    // Fecha e abre a seção do banco para atualizar a lista visualmente
+                    const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+                    const secBanco = document.getElementById('sec-banco-geral');
+                    
+                    if (secBanco) {
+                        secBanco.classList.add('escondido');
+                        if (btnBanco) toggleSecaoBanco('sec-banco-geral', btnBanco);
+                    }
+                } else {
+                    alert("Erro ao excluir questão do servidor.");
+                }
+            } catch (err) {
+                console.error("Erro na requisição de exclusão:", err);
+            }
         }
 
         async function addUsuario() {
@@ -639,23 +783,31 @@
 
         async function toggleSecaoQuestoes(id, btn) {
             const sec = document.getElementById(id);
-            const divRender = document.getElementById('render-questoes-atuais');
+            
             if (sec.classList.contains('escondido')) {
-                const res = await fetch('/questoes/listar');
-                const data = await res.json();
-                divRender.innerHTML = data.map(q => `
-                <div class="card-admin" style="background:#4b6584;">
-                    <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})">X</button>
-                    <strong>${q.pergunta}</strong>
-                    <div style="font-size:11px; margin-top:5px; opacity:0.8;">
-                        ${q.opcoes ? q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('') : ''}
-                    </div>
-                </div>`).join('') || "Vazio.";
-                sec.classList.remove('escondido');
-                btn.innerText = "Ocultar Questões do Quiz";
+                try {
+                    // Busca as questões atualizadas do servidor
+                    const res = await fetch('/questoes/listar');
+                    const data = await res.json();
+                    
+                    // Atualiza a variável global para manter a sincronia
+                    perguntasAtuais = data; 
+
+                    // Chama a função de renderização que já tem suporte a fotos e [X]
+                    renderQuestoesAtuais(data);
+
+                    // Ajustes de interface
+                    sec.classList.remove('escondido');
+                    btn.innerText = "Ocultar Questões do Quiz";
+                    btn.style.background = "#c0392b"; // Opcional: muda cor para indicar que pode fechar
+                } catch (err) {
+                    console.error("Erro ao carregar questões:", err);
+                    alert("Não foi possível carregar as questões.");
+                }
             } else {
                 sec.classList.add('escondido');
                 btn.innerText = "Exibir Questões do Quiz";
+                btn.style.background = "#e67e22"; // Volta para a cor original
             }
         }
 
@@ -822,14 +974,21 @@
         }
 
         // No seu Admin.renderBanco(), adicione a tag <img> se existir:
-        function renderBanco(dados) {
+        function renderBanco(questoes) {
             const container = document.getElementById('render-banco-geral');
-            container.innerHTML = dados.map(q => `
+            if (!container) return;
+            container.innerHTML = questoes.map(q => `
                 <div class="card-admin">
-                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; border-radius:4px; margin-bottom:8px;">` : ''}
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; border-radius:8px; margin-bottom:10px; background:white;">` : ''}
+                    
                     <strong>${q.pergunta}</strong>
+                    <div style="margin:5px 0; font-size:12px;">
+                        ${q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
                     </div>
-            `).join('');
+                    <button onclick="ativarNoQuiz(${q.id})" class="opcao" style="background:#27ae60">Ativar no Quiz</button>
+                    <button onclick="excluirDoBanco(${q.id})" class="opcao" style="background:#e74c3c; padding:5px; font-size:11px;">Excluir Permanente</button>
+                </div>
+            `).join('') || "O banco está vazio.";
         }
 
         async function enviarSugestao() {
@@ -1000,6 +1159,38 @@
             } catch (error) {
                 console.error("Erro no login:", error);
                 alert("Não foi possível conectar ao servidor. Verifique se o server.js está rodando.");
+            }
+        }
+
+        async function ativarNoQuiz(id) {
+            if (!confirm("Deseja ativar esta questão no Quiz atual?")) return;
+
+            try {
+                const res = await fetch('/questoes/ativar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+
+                if (res.ok) {
+                    alert("Questão ativada com sucesso!");
+                    
+                    // Atualiza os dados para refletir que a questão saiu do banco e foi para o quiz
+                    await atualizarDadosInterface();
+                    
+                    // Atualiza a visualização do banco para sumir a questão de lá
+                    const btnBanco = document.querySelector("button[onclick*='toggleSecaoBanco']");
+                    if (btnBanco) {
+                        // Força o refresh da lista do banco
+                        const secBanco = document.getElementById('sec-banco-geral');
+                        secBanco.classList.add('escondido'); // Fecha
+                        toggleSecaoBanco('sec-banco-geral', btnBanco); // Abre carregando novos dados
+                    }
+                } else {
+                    alert("Erro ao ativar questão.");
+                }
+            } catch (err) {
+                console.error("Erro ao ativar:", err);
             }
         }
     </script>
