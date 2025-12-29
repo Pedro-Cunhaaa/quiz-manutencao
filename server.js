@@ -204,7 +204,7 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
 
-/* PARA PRODUÇÃO (MÁQUINA DEDICADA):
+/* PARA PRODUÇÃO (MÁQUINA DEDICADA NA CTA):
 Substitua o trecho acima por:
 
 const IP_SERVIDOR = '0.0.0.0';

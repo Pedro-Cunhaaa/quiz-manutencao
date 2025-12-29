@@ -309,6 +309,9 @@
                             <button onclick="toggleSecao('area-nova-questao', this, 'Criar Questão')" class="opcao" style="background:#e67e22; font-size:12px;">Criar Questão</button>
                             <div id="area-nova-questao" class="escondido area-criacao">
                                 <strong>Nova Questão (Direta no Banco)</strong>
+                                <label style="display:block; margin-top:10px; font-size:12px;">Foto (Opcional):</label>
+                                <input type="file" id="input-foto" class="input-edit" accept="image/jpeg" onchange="Utils.preview(this)">
+                                <img id="preview-img" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-bottom:10px; border-radius:4px;">
                                 <input type="text" id="dir-pergunta" class="input-edit" placeholder="Pergunta">
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="0"> <input type="text" id="dir-opt-0" class="input-edit" placeholder="Alternativa 1"></div>
                                 <div class="linha-alternativa"><input type="radio" name="correta-dir" value="1"> <input type="text" id="dir-opt-1" class="input-edit" placeholder="Alternativa 2"></div>
@@ -338,6 +341,9 @@
                 <div class="form-sugestao">
                     <div class="coluna-titulo" style="font-size:14px;">Sugerir Nova Questão</div>
                     <input type="text" id="sug-pergunta" class="input-edit" placeholder="Pergunta">
+                    <label style="display:block; margin-top:10px; font-size:12px;">Foto (Opcional):</label>
+                    <input type="file" id="input-foto" class="input-edit" accept="image/jpeg" onchange="Utils.preview(this)">
+                    <img id="preview-img" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-bottom:10px; border-radius:4px;">
                     <div class="linha-alternativa"><input type="radio" name="correta" value="0"> <input type="text" id="opt-0" class="input-edit" placeholder="Alternativa 1"></div>
                     <div class="linha-alternativa"><input type="radio" name="correta" value="1"> <input type="text" id="opt-1" class="input-edit" placeholder="Alternativa 2"></div>
                     <div class="linha-alternativa"><input type="radio" name="correta" value="2"> <input type="text" id="opt-2" class="input-edit" placeholder="Alternativa 3"></div>
@@ -648,13 +654,24 @@
 
         function mostrarPergunta() {
             if (indiceAtual >= perguntas.length) return finalizarQuiz();
+            
             clearInterval(cronometro);
             tempoRestante = 30;
             document.getElementById('timer').innerText = tempoRestante;
+            
             const p = perguntas[indiceAtual];
-            document.getElementById('texto-pergunta').innerText = p.pergunta;
+            const textoPerguntaElement = document.getElementById('texto-pergunta');
+            
+            // Limpamos o conteúdo anterior e verificamos se existe imagem
+            // Se houver imagem (string Base64), criamos uma tag <img> antes do texto
+            textoPerguntaElement.innerHTML = `
+                ${p.imagem ? `<img src="${p.imagem}" class="img-pergunta" style="width:100%; max-height:250px; object-fit:contain; margin-bottom:15px; border-radius:8px; display:block;">` : ''}
+                <span>${p.pergunta}</span>
+            `;
+
             const area = document.getElementById('area-opcoes');
             area.innerHTML = "";
+            
             p.opcoes.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.className = 'opcao';
@@ -667,6 +684,7 @@
                 };
                 area.appendChild(btn);
             });
+
             cronometro = setInterval(() => {
                 tempoRestante--;
                 document.getElementById('timer').innerText = tempoRestante;
@@ -707,6 +725,59 @@
             alert("Sugestão enviada!");
             document.getElementById('sug-pergunta').value = "";
         }
+
+        const Utils = {
+        // Transforma o arquivo selecionado em uma string Base64
+        toBase64: (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        }),
+
+        // Mostra uma prévia da imagem ao selecionar
+        preview: (input) => {
+            const img = document.getElementById('preview-img');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    };
+
+    // ATUALIZE A FUNÇÃO DE ENVIAR SUGESTÃO (MATEUS)
+    async function enviarIdeia() {
+        const p = document.getElementById('sug-pergunta').value;
+        const fotoFile = document.getElementById('input-foto').files[0];
+        let imagemBase64 = null;
+
+        if (fotoFile) imagemBase64 = await Utils.toBase64(fotoFile);
+
+        const questao = {
+            pergunta: p,
+            imagem: imagemBase64, // Foto opcional inclusa aqui
+            opcoes: [/* ... suas opções ... */],
+            correta: "..." 
+        };
+        
+        await API.post('/salvar-ideia', questao);
+        alert("Sugestão enviada!");
+    }
+
+    // No seu Admin.renderBanco(), adicione a tag <img> se existir:
+    function renderBanco(dados) {
+        const container = document.getElementById('render-banco-geral');
+        container.innerHTML = dados.map(q => `
+            <div class="card-admin">
+                ${q.imagem ? `<img src="${q.imagem}" style="width:100%; border-radius:4px; margin-bottom:8px;">` : ''}
+                <strong>${q.pergunta}</strong>
+                </div>
+        `).join('');
+    }
     </script>
 </body>
 

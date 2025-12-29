@@ -18,10 +18,5 @@
     "login": "wagner",
     "senha": "wagner",
     "tipo": "user"
-  },
-  {
-    "login": "marcelo",
-    "senha": "marcelo",
-    "tipo": "user"
   }
 ]
