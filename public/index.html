@@ -359,58 +359,82 @@
                 renderSugestoes();
             } else {
                 layout.innerHTML = `
-                <button onclick="toggleSecao('sec-rel-mat', this, 'Relatorios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
+                <button onclick="toggleSecao('sec-rel-mat', this, 'Relatórios')" class="opcao" style="background: #3498db;">Exibir Relatórios</button>
                 <div id="sec-rel-mat" class="escondido"><div id="render-relatorios"></div></div>
+                
                 <div class="form-sugestao">
                     <div class="coluna-titulo" style="font-size:14px;">Sugerir Nova Questão</div>
                     <input type="text" id="sug-pergunta" class="input-edit" placeholder="Pergunta">
+                    
                     <label style="display:block; margin-top:10px; font-size:12px;">Foto (Opcional):</label>
-                    <input type="file" id="input-foto" class="input-edit" accept="image/jpeg" onchange="Utils.preview(this)">
-                    <img id="preview-img" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-bottom:10px; border-radius:4px;">
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="0"> <input type="text" id="opt-0" class="input-edit" placeholder="Alternativa 1"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="1"> <input type="text" id="opt-1" class="input-edit" placeholder="Alternativa 2"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="2"> <input type="text" id="opt-2" class="input-edit" placeholder="Alternativa 3"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="3"> <input type="text" id="opt-3" class="input-edit" placeholder="Alternativa 4"></div>
-                    <div class="linha-alternativa"><input type="radio" name="correta" value="4"> <input type="text" id="opt-4" class="input-edit" placeholder="Alternativa 5"></div>
+                    <div style="position: relative;">
+                        <input type="file" id="input-foto-sug" class="input-edit" accept="image/*" onchange="gerenciarPreview(this, 'preview-sug', 'btn-del-sug')">
+                        <img id="preview-sug" style="display:none; width:100%; max-height:150px; object-fit:contain; margin-top:10px; border-radius:4px;">
+                        <button id="btn-del-sug" onclick="removerFoto('input-foto-sug', 'preview-sug', this)" 
+                            style="display:none; position: absolute; top: 45px; right: 5px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer;">X</button>
+                    </div>
+
+                    <div class="linha-alternativa"><input type="radio" name="correta-sug" value="0"> <input type="text" id="opt-sug-0" class="input-edit" placeholder="Alternativa 1"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta-sug" value="1"> <input type="text" id="opt-sug-1" class="input-edit" placeholder="Alternativa 2"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta-sug" value="2"> <input type="text" id="opt-sug-2" class="input-edit" placeholder="Alternativa 3"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta-sug" value="3"> <input type="text" id="opt-sug-3" class="input-edit" placeholder="Alternativa 4"></div>
+                    <div class="linha-alternativa"><input type="radio" name="correta-sug" value="4"> <input type="text" id="opt-sug-4" class="input-edit" placeholder="Alternativa 5"></div>
+                    
                     <button onclick="enviarIdeia()" class="opcao" style="background: #27ae60;">Enviar Sugestão</button>
                 </div>`;
                 renderRelatorios('render-relatorios');
             }
         }
 
-        async function salvarQuestaoDireta() {
-            const p = document.getElementById('dir-pergunta').value;
-            const opts = [
-                document.getElementById('dir-opt-0').value,
-                document.getElementById('dir-opt-1').value,
-                document.getElementById('dir-opt-2').value,
-                document.getElementById('dir-opt-3').value,
-                document.getElementById('dir-opt-4').value
-            ];
-            const cor = document.querySelector('input[name="correta-dir"]:checked');
+        async function salvarQuestao(tipo) {
+            const isSugestao = tipo === 'sugestao';
+            const sufixo = isSugestao ? 'sug' : 'admin';
+            
+            const pergunta = document.getElementById(`pergunta-${sufixo}`).value;
+            const fotoInput = document.getElementById(`input-foto-${sufixo}`);
+            
+            if (!pergunta) return alert("Preencha a pergunta!");
 
-            if (!p || !cor) return alert("Preencha a pergunta e selecione a alternativa correta!");
+            let imagemBase64 = null;
+            if (fotoInput.files[0]) {
+                // Converte a imagem para texto antes de enviar
+                imagemBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(fotoInput.files[0]);
+                });
+            }
 
-            const questao = { pergunta: p, opcoes: opts, correta: opts[parseInt(cor.value)] };
+            const dados = {
+                pergunta,
+                imagem: imagemBase64,
+                opcoes: [
+                    document.getElementById(`opt1-${sufixo}`).value,
+                    document.getElementById(`opt2-${sufixo}`).value,
+                    document.getElementById(`opt3-${sufixo}`).value,
+                    document.getElementById(`opt4-${sufixo}`).value,
+                    document.getElementById(`opt5-${sufixo}`).value
+                ],
+                correta: document.querySelector(`input[name="correta-${sufixo}"]:checked`)?.value
+            };
 
-            await fetch('/salvar-ideia', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(questao)
-            });
+            if (!dados.correta) return alert("Selecione a resposta correta!");
 
-            const resRefresh = await fetch('/admin/refresh-dados');
-            const dados = await resRefresh.json();
-            const ultimaIdeia = dados.ideiasAtuais[dados.ideiasAtuais.length - 1];
-
-            await aprovarParaBanco(ultimaIdeia.id);
-            alert("Questão criada e adicionada ao banco com sucesso!");
-
-            document.getElementById('dir-pergunta').value = "";
-            document.querySelectorAll('input[name="correta-dir"]').forEach(r => r.checked = false);
-            opts.forEach((_, i) => document.getElementById(`dir-opt-${i}`).value = "");
-
-            toggleSecao('area-nova-questao', document.querySelector("button[onclick*='area-nova-questao']"), 'Criar Questão');
+            const rota = isSugestao ? '/salvar-ideia' : '/questoes/adicionar';
+            
+            try {
+                const res = await fetch(rota, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+                if (res.ok) {
+                    alert("Enviado com sucesso!");
+                    location.reload();
+                }
+            } catch (err) {
+                alert("Erro ao conectar com o servidor.");
+            }
         }
 
         function renderRelatorios(id) {
@@ -730,23 +754,52 @@
         }
 
         async function enviarIdeia() {
-            const p = document.getElementById('sug-pergunta').value;
-            const opts = [
-                document.getElementById('opt-0').value,
-                document.getElementById('opt-1').value,
-                document.getElementById('opt-2').value,
-                document.getElementById('opt-3').value,
-                document.getElementById('opt-4').value
-            ];
-            const cor = document.querySelector('input[name="correta"]:checked');
-            if (!p || !cor) return alert("Preencha tudo!");
-            await fetch('/salvar-ideia', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pergunta: p, opcoes: opts, correta: opts[parseInt(cor.value)] })
-            });
-            alert("Sugestão enviada!");
-            document.getElementById('sug-pergunta').value = "";
+            const pergunta = document.getElementById('sug-pergunta').value;
+            const fotoInput = document.getElementById('input-foto-sug');
+            const corretaSelec = document.querySelector('input[name="correta-sug"]:checked');
+
+            if (!pergunta || !corretaSelec) {
+                return alert("Por favor, preencha a pergunta e selecione a resposta correta.");
+            }
+
+            let imagemBase64 = null;
+
+            // Se tiver foto, converte para Base64 antes de enviar
+            if (fotoInput.files[0]) {
+                imagemBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(fotoInput.files[0]);
+                });
+            }
+
+            const novaSugestao = {
+                pergunta: pergunta,
+                imagem: imagemBase64,
+                opcoes: [
+                    document.getElementById('opt-sug-0').value,
+                    document.getElementById('opt-sug-1').value,
+                    document.getElementById('opt-sug-2').value,
+                    document.getElementById('opt-sug-3').value,
+                    document.getElementById('opt-sug-4').value
+                ],
+                correta: document.getElementById(`opt-sug-${corretaSelec.value}`).value
+            };
+
+            try {
+                const response = await fetch('/salvar-ideia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(novaSugestao)
+                });
+
+                if (response.ok) {
+                    alert("Sugestão enviada com sucesso!");
+                    location.reload();
+                }
+            } catch (error) {
+                alert("Erro ao enviar. Verifique o servidor.");
+            }
         }
 
         // ATUALIZE A FUNÇÃO DE ENVIAR SUGESTÃO (MATEUS)
@@ -882,6 +935,29 @@
                     <button onclick="rejeitarSugestao('${i.id}')">Rejeitar</button>
                 </div>
             `).join('');
+        }
+
+        // Faz a foto aparecer e mostra o botão X
+        function gerenciarPreview(input, imgId, btnId) {
+            const preview = document.getElementById(imgId);
+            const btnDel = document.getElementById(btnId);
+            
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    btnDel.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Limpa a foto se clicar no X
+        function removerFoto(inputId, imgId, btn) {
+            document.getElementById(inputId).value = ""; 
+            document.getElementById(imgId).style.display = 'none';
+            btn.style.display = 'none';
         }
     </script>
 </body>

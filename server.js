@@ -1,9 +1,8 @@
 const express = require('express');
-const fs = require('fs');
 const app = express();
 
-// Aumenta o limite para aceitar as strings de fotos (Base64)
-app.use(express.json({ limit: '50mb' })); 
+// Aumenta o limite para 50MB para suportar as imagens em Base64
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
