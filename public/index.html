@@ -1070,26 +1070,48 @@
             const container = document.getElementById('render-banco-geral');
             if (!container) return;
 
-            container.innerHTML = questoes.map(q => `
-                <div class="card-admin">
-                    ${q.imagem ? `
-                        <div style="background:white; border-radius:8px; padding:5px; margin-bottom:10px; text-align:center;">
-                            <img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; display:block; margin:0 auto;">
-                        </div>
-                    ` : ''}
-                    
-                    <strong>${q.pergunta}</strong>
-                    <div style="margin:5px 0; font-size:12px;">
-                        ${q.opcoes.map(o => `
-                            <div style="${o === q.correta ? 'color:#2ecc71; font-weight:bold;' : ''}">
-                                ${o === q.correta ? '[X]' : '[ ]'} ${o}
+            container.innerHTML = questoes.map(q => {
+                // Garantimos que o ID seja tratado como número ou string conforme o banco
+                const questaoId = q.id;
+
+                return `
+                    <div class="card-admin" style="border-left: 4px solid #f39c12; margin-bottom: 15px;">
+                        ${q.imagem && q.imagem.trim() !== "" ? `
+                            <div style="background: white; border-radius: 8px; padding: 8px; margin-bottom: 12px; text-align: center; border: 1px solid #ddd;">
+                                <img src="${q.imagem}" 
+                                    alt="Imagem da questão"
+                                    style="width: 100%; max-height: 180px; object-fit: contain; display: block; margin: 0 auto; cursor: pointer;"
+                                    onclick="window.open(this.src)">
+                                <small style="color: #666; font-size: 10px;">Clique para ampliar</small>
                             </div>
-                        `).join('')}
+                        ` : `
+                            <div style="background: #2c3e50; border-radius: 8px; padding: 10px; margin-bottom: 12px; text-align: center; border: 1px dashed #7f8c8d;">
+                                <span style="color: #95a5a6; font-size: 12px;">Questão sem imagem</span>
+                            </div>
+                        `}
+                        
+                        <div style="margin-bottom: 10px;">
+                            <strong style="display: block; margin-bottom: 5px;">${q.pergunta}</strong>
+                            <div style="margin-left: 5px; font-size: 13px; line-height: 1.6;">
+                                ${q.opcoes.map(o => `
+                                    <div style="${o === q.correta ? 'color: #2ecc71; font-weight: bold; background: rgba(46, 204, 113, 0.1); border-radius: 4px; padding-left: 5px;' : 'color: #ecf0f1;'}">
+                                        ${o === q.correta ? '<span style="color: #2ecc71;">[X]</span>' : '[ ]'} ${o}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                            <button onclick="ativarNoQuiz(${questaoId})" class="opcao" style="background: #27ae60; padding: 8px; font-weight: bold;">
+                                🚀 Ativar no Quiz Ativo
+                            </button>
+                            <button onclick="excluirDoBanco(${questaoId})" class="opcao" style="background: #e74c3c; padding: 6px; font-size: 11px; opacity: 0.9;">
+                                🗑️ Excluir Permanentemente
+                            </button>
+                        </div>
                     </div>
-                    <button onclick="ativarNoQuiz(${q.id})" class="opcao" style="background:#27ae60">Ativar no Quiz</button>
-                    <button onclick="excluirDoBanco(${q.id})" class="opcao" style="background:#e74c3c; padding:5px; font-size:11px; margin-top:5px;">Excluir Permanente</button>
-                </div>
-            `).join('') || "O banco está vazio.";
+                `;
+            }).join('') || `<div style="text-align:center; padding: 20px; color: #bdc3c7;">📭 O banco de questões está vazio.</div>`;
         }
 
         async function enviarSugestao() {
