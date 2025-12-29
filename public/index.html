@@ -443,33 +443,51 @@
         }
 
         async function salvarQuestao(tipo) {
-            // Define qual prefixo usar baseado no tipo de usuário
-            const prefixo = tipo === 'admin' ? 'admin' : 'sug';
+            // 1. Identificação Dinâmica de Prefixo e IDs
+            // Verificamos qual campo de pergunta existe na tela no momento
+            const perguntaElem = document.getElementById('admin-pergunta') || 
+                                document.getElementById('sug-pergunta') || 
+                                document.getElementById('dir-pergunta');
             
-            // Tenta capturar a pergunta (tenta o ID novo ou o ID antigo 'dir-pergunta')
-            const perguntaElem = document.getElementById(`${prefixo}-pergunta`) || document.getElementById('dir-pergunta') || document.getElementById('sug-pergunta');
-            
-            // Tenta capturar o input de foto
-            const fotoInput = document.getElementById(`input-foto-${prefixo}`) || document.getElementById('input-foto-sug') || document.getElementById('input-foto');
-            
-            // Tenta capturar qual radio está marcado
-            const corretaRadio = document.querySelector(`input[name="correta-${prefixo}"]:checked`) || document.querySelector(`input[name="correta-sug"]:checked`) || document.querySelector(`input[name="correta-dir"]:checked`);
+            // Verificamos qual input de foto está disponível
+            const fotoInput = document.getElementById('input-foto-admin') || 
+                            document.getElementById('input-foto-sug') || 
+                            document.getElementById('input-foto');
+
+            // Identificamos o prefixo para os Radio Buttons e Opções
+            // Se existir o campo de pergunta da manutenção, usamos 'admin', caso contrário 'sug'
+            const prefixo = (perguntaElem && perguntaElem.id.includes('admin')) ? 'admin' : 'sug';
+
+            // Captura o radio marcado (tenta todos os nomes possíveis para evitar erro de null)
+            const corretaRadio = document.querySelector(`input[name="correta-${prefixo}"]:checked`) || 
+                                document.querySelector(`input[name="correta-sug"]:checked`) || 
+                                document.querySelector(`input[name="correta-dir"]:checked`);
 
             // Validação de segurança
             if (!perguntaElem || !corretaRadio) {
-                return alert("Erro: Não foi possível localizar os campos do formulário. Verifique os IDs.");
+                return alert("Erro: Por favor, preencha a pergunta e selecione a alternativa correta.");
             }
 
             const pergunta = perguntaElem.value;
             const indiceCorreta = corretaRadio.value;
             
-            // Tenta capturar o texto da alternativa correta usando IDs dinâmicos
-            const optIdBase = tipo === 'admin' ? 'admin-opt-' : (document.getElementById('opt-sug-0') ? 'opt-sug-' : 'opt-');
-            const textoCorretaElem = document.getElementById(`${optIdBase}${indiceCorreta}`) || document.getElementById(`dir-opt-${indiceCorreta}`);
+            // 2. Identificação Dinâmica da Base das Opções (Evita o erro de leitura de 'value' em null)
+            let optIdBase;
+            if (document.getElementById('admin-opt-0')) {
+                optIdBase = 'admin-opt-';
+            } else if (document.getElementById('opt-sug-0')) {
+                optIdBase = 'opt-sug-';
+            } else {
+                optIdBase = 'opt-'; // Fallback para IDs antigos
+            }
+
+            const textoCorretaElem = document.getElementById(`${optIdBase}${indiceCorreta}`) || 
+                                    document.getElementById(`dir-opt-${indiceCorreta}`);
             
             if (!textoCorretaElem) return alert("Erro ao encontrar o texto da alternativa selecionada.");
             const textoCorreta = textoCorretaElem.value;
 
+            // 3. Processamento da Imagem
             let imagemBase64 = null;
             if (fotoInput && fotoInput.files[0]) {
                 imagemBase64 = await new Promise((resolve) => {
@@ -479,25 +497,27 @@
                 });
             }
 
-            // Monta o objeto final
+            // 4. Montagem do Objeto (Payload)
             const payload = {
-                id: Date.now(), // Gera um ID único baseado no tempo
+                id: Date.now(),
                 pergunta: pergunta,
                 imagem: imagemBase64,
                 opcoes: [],
                 correta: textoCorreta
             };
 
-            // Preenche as opções dinamicamente e limpa os campos de texto das opções
             const camposOpcoes = [];
             for (let i = 0; i < 5; i++) {
-                const opt = document.getElementById(`${optIdBase}${i}`) || document.getElementById(`dir-opt-${i}`) || document.getElementById(`opt-sug-${i}`);
+                const opt = document.getElementById(`${optIdBase}${i}`) || 
+                            document.getElementById(`dir-opt-${i}`) || 
+                            document.getElementById(`opt-sug-${i}`);
                 if (opt) {
                     payload.opcoes.push(opt.value);
-                    camposOpcoes.push(opt); // Guarda a referência para limpar depois
+                    camposOpcoes.push(opt);
                 }
             }
 
+            // 5. Envio para o Servidor
             const rota = tipo === 'admin' ? '/questoes/adicionar' : '/salvar-ideia';
 
             try {
@@ -510,28 +530,20 @@
                 if (res.ok) {
                     alert("Sucesso!");
                     
-                    // --- ATUALIZAÇÕES PARA EVITAR LOGOUT ---
-                    
-                    // 1. Atualiza os dados internos sem recarregar a página
+                    // Atualiza interface sem recarregar (Mantém login)
                     await atualizarDadosInterface(); 
 
-                    // 2. Limpa os campos do formulário manualmente
+                    // Limpeza dos campos
                     perguntaElem.value = '';
                     if (fotoInput) fotoInput.value = '';
-                    
-                    // Limpa os inputs de texto das alternativas
                     camposOpcoes.forEach(campo => campo.value = '');
-                    
-                    // Desmarca o radio button selecionado
                     corretaRadio.checked = false;
 
-                    // 3. Opcional: Volta para o menu inicial se for o Mateus
                     if (typeof voltarMenu === 'function') {
                         voltarMenu();
                     }
-                    
                 } else {
-                    alert("Erro ao salvar no servidor.");
+                    alert("Erro ao salvar no servidor. Verifique se a rota existe.");
                 }
             } catch (err) {
                 console.error("Erro na requisição:", err);

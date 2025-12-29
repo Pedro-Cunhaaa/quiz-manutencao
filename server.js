@@ -70,8 +70,13 @@ app.post('/questoes/adicionar-da-sugestao', (req, res) => {
         const index = ideias.findIndex(i => Number(i.id) === idProcurado);
 
         if (index !== -1) {
-            // Mantém a imagem e todos os dados, apenas move de arquivo
-            banco.push(ideias[index]); 
+            // Pegamos o objeto completo (que já contém a imagem do Mateus)
+            const novaQuestao = ideias[index];
+            
+            // Opcional: atualizar o ID para o momento da aprovação
+            novaQuestao.id = Date.now();
+
+            banco.push(novaQuestao); 
             ideias.splice(index, 1);
             
             salvarJSON(CAMINHO_BANCO_GERAL, banco);
@@ -250,6 +255,26 @@ app.get('/admin/refresh-dados', (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ erro: "Erro ao ler arquivos" });
+    }
+});
+
+// Permite que o administrador/manutenção crie questões diretamente no banco ativo
+app.post('/questoes/adicionar', (req, res) => {
+    try {
+        let perguntasAtivas = lerJSON(CAMINHO_PERGUNTAS);
+        
+        // O payload enviado pelo front já contém pergunta, imagem, opcoes e correta
+        const novaQuestao = {
+            ...req.body,
+            id: req.body.id || Date.now()
+        };
+
+        perguntasAtivas.push(novaQuestao);
+        salvarJSON(CAMINHO_PERGUNTAS, perguntasAtivas);
+        
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
     }
 });
 
