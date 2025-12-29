@@ -1,7 +1,8 @@
 const express = require('express');
+const fs = require('fs');
 const app = express();
 
-// Aumenta o limite para 50MB para suportar as imagens em Base64
+// Aumente o limite para 50MB para suportar as imagens em Base64
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
@@ -28,24 +29,29 @@ const salvarJSON = (caminho, dado) => {
     fs.writeFileSync(caminho, JSON.stringify(dado, null, 2));
 };
 
-// --- ROTAS DE LOGIN ---
-
+// ROTA DE LOGIN CORRIGIDA
 app.post('/login', (req, res) => {
     const { usuario, senha } = req.body;
-    const usuarios = lerJSON(CAMINHO_USUARIOS);
-    const user = usuarios.find(u => u.login === usuario && u.senha === senha);
+    const usuarios = JSON.parse(fs.readFileSync('./usuarios.json', 'utf8'));
+    
+    // Procura o usuário ignorando maiúsculas/minúsculas
+    const user = usuarios.find(u => u.login.toLowerCase() === usuario.toLowerCase() && u.senha === senha);
 
     if (user) {
+        const perguntas = JSON.parse(fs.readFileSync('./perguntas.json', 'utf8'));
+        const ideias = JSON.parse(fs.readFileSync('./ideias.json', 'utf8'));
+        const historico = JSON.parse(fs.readFileSync('./historico.json', 'utf8'));
+
         res.json({
             sucesso: true,
             tipo: user.tipo,
-            tentativas: lerJSON(CAMINHO_HISTORICO),
-            ideiasAtuais: lerJSON(CAMINHO_IDEIAS),
-            listaUsuarios: usuarios,
-            perguntas: user.tipo === 'user' ? lerJSON(CAMINHO_PERGUNTAS) : []
+            perguntas: user.tipo === 'user' ? perguntas : [],
+            ideiasAtuais: ideias,
+            tentativas: historico,
+            listaUsuarios: usuarios
         });
     } else {
-        res.json({ sucesso: false });
+        res.status(401).json({ sucesso: false, mensagem: "Usuário ou senha inválidos" });
     }
 });
 

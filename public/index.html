@@ -953,11 +953,54 @@
             }
         }
 
-        // Limpa a foto se clicar no X
-        function removerFoto(inputId, imgId, btn) {
+        function removerFoto(inputId, imgId, btnId) {
             document.getElementById(inputId).value = ""; 
             document.getElementById(imgId).style.display = 'none';
-            btn.style.display = 'none';
+            document.getElementById(btnId).style.display = 'none';
+        }
+
+        async function login() {
+            const usuarioInput = document.getElementById('user').value;
+            const senhaInput = document.getElementById('pass').value;
+
+            if (!usuarioInput || !senhaInput) {
+                return alert("Por favor, preencha todos os campos.");
+            }
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        usuario: usuarioInput, 
+                        senha: senhaInput 
+                    })
+                });
+
+                const dados = await response.json();
+
+                if (dados.sucesso) {
+                    // Guarda o nome do usuário logado globalmente
+                    usuarioLogado = usuarioInput.toLowerCase();
+                    
+                    // Esconde a tela de login e mostra o container principal
+                    document.getElementById('view-login').classList.add('escondido');
+                    
+                    if (dados.tipo === 'admin') {
+                        // Função que você já deve ter ou precisa criar para montar o painel
+                        abrirPainelAdmin(dados); 
+                    } else {
+                        // Função para carregar o quiz para Pedro/Wagner
+                        perguntas = dados.perguntas;
+                        abrirMenuUser(dados);
+                    }
+                } else {
+                    alert(dados.mensagem || "Usuário ou senha incorretos.");
+                }
+            } catch (error) {
+                console.error("Erro no login:", error);
+                alert("Não foi possível conectar ao servidor. Verifique se o server.js está rodando.");
+            }
         }
     </script>
 </body>
