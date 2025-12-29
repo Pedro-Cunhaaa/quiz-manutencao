@@ -252,34 +252,40 @@
                 const res = await fetch('/admin/refresh-dados');
                 const dados = await res.json();
 
-                // 1. Atualiza as variáveis globais com os dados vindos do servidor
+                // 1. Sincronização de Variáveis Globais
                 historicoAdmin = dados.tentativas;
                 ideiasAtuais = dados.ideiasAtuais;
                 listaUsuarios = dados.listaUsuarios;
                 
-                // ADICIONADO: Atualiza também o banco e as questões do quiz para a Manutenção
-                if (typeof dados.bancoGeral !== 'undefined') {
+                // Garante que o Banco Geral e as Questões Ativas sejam atualizados
+                // Certifique-se de que essas variáveis globais (questoesBanco e perguntasAtuais) 
+                // sejam as mesmas usadas em todo o seu script.
+                if (dados.bancoGeral) {
                     questoesBanco = dados.bancoGeral; 
                 }
-                if (typeof dados.perguntasQuiz !== 'undefined') {
+                if (dados.perguntasQuiz) {
                     perguntasAtuais = dados.perguntasQuiz;
                 }
 
-                // 2. Re-renderiza as partes da interface que estão visíveis
+                // 2. Renderização Condicional (Interface da Manutenção)
                 if (usuarioLogado === "manutencao") {
                     renderUsuarios();
-                    renderSugestoes();
+                    renderSugestoes(); // Esta função agora já mostra fotos
                     
-                    // Se as seções de Questões ou Banco estiverem abertas, elas precisam ser atualizadas
-                    if (!document.getElementById('sec-questoes').classList.contains('escondido')) {
-                        renderQuestoesAtuais(perguntasAtuais);
+                    // Atualiza as listas de questões apenas se a seção não estiver escondida
+                    const secQuestoes = document.getElementById('sec-questoes');
+                    const secBanco = document.getElementById('sec-banco-geral');
+
+                    if (secQuestoes && !secQuestoes.classList.contains('escondido')) {
+                        renderQuestoesAtuais(perguntasAtuais); // Chama a função com foto
                     }
-                    if (!document.getElementById('sec-banco-geral').classList.contains('escondido')) {
-                        renderBanco(questoesBanco);
+                    
+                    if (secBanco && !secBanco.classList.contains('escondido')) {
+                        renderBanco(questoesBanco); // Chama a função com foto
                     }
                 }
                 
-                // Relatórios são comuns a Mateus e Manutenção
+                // 3. Relatórios (Sempre atualiza para ambos os usuários)
                 renderRelatorios('render-relatorios');
 
             } catch (err) {
@@ -292,20 +298,30 @@
             if (!div) return;
 
             div.innerHTML = questoes.map((q, i) => `
-                <div class="card-admin" style="background:#34495e; position: relative;">
+                <div class="card-admin" style="background:#34495e; position: relative; border-left: 4px solid #3498db;">
                     <button class="btn-excluir-rel" onclick="removerDoQuiz(${q.id})" 
-                            style="position:absolute; top:5px; right:5px; background:#e74c3c; border-radius:4px; border:none; color:white; cursor:pointer; width:22px; height:22px;">X</button>
+                            style="position:absolute; top:5px; right:5px; background:#e74c3c; border-radius:4px; border:none; color:white; cursor:pointer; width:22px; height:22px; font-weight:bold;">X</button>
                     
                     <strong>Questão ${i + 1}</strong>
-                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; margin:10px 0; background:white;">` : ''}
+
+                    ${q.imagem ? `
+                        <div style="background:white; border-radius:4px; padding:5px; margin:10px 0; text-align:center;">
+                            <img src="${q.imagem}" style="width:100%; max-height:120px; object-fit:contain; display:block; margin:0 auto;">
+                        </div>
+                    ` : ''}
                     
-                    <p style="margin:5px 0;">${q.pergunta}</p>
+                    <p style="margin:5px 0; font-weight:bold;">${q.pergunta}</p>
                     <div style="font-size:12px; color:#bdc3c7;">
-                        ${q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
+                        ${q.opcoes.map(o => `
+                            <div style="${o === q.correta ? 'color:#2ecc71;' : ''}">
+                                ${o === q.correta ? '[X]' : '[ ]'} ${o}
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `).join('') || "Nenhuma questão ativa.";
         }
+
         async function fazerLogin() {
             const uInput = document.getElementById('user').value.toLowerCase();
             const sInput = document.getElementById('pass').value;
@@ -1050,20 +1066,28 @@
             alert("Sugestão enviada!");
         }
 
-        // No seu Admin.renderBanco(), adicione a tag <img> se existir:
         function renderBanco(questoes) {
             const container = document.getElementById('render-banco-geral');
             if (!container) return;
+
             container.innerHTML = questoes.map(q => `
                 <div class="card-admin">
-                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; border-radius:8px; margin-bottom:10px; background:white;">` : ''}
+                    ${q.imagem ? `
+                        <div style="background:white; border-radius:8px; padding:5px; margin-bottom:10px; text-align:center;">
+                            <img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; display:block; margin:0 auto;">
+                        </div>
+                    ` : ''}
                     
                     <strong>${q.pergunta}</strong>
                     <div style="margin:5px 0; font-size:12px;">
-                        ${q.opcoes.map(o => `<div>${o === q.correta ? '[X]' : '[ ]'} ${o}</div>`).join('')}
+                        ${q.opcoes.map(o => `
+                            <div style="${o === q.correta ? 'color:#2ecc71; font-weight:bold;' : ''}">
+                                ${o === q.correta ? '[X]' : '[ ]'} ${o}
+                            </div>
+                        `).join('')}
                     </div>
                     <button onclick="ativarNoQuiz(${q.id})" class="opcao" style="background:#27ae60">Ativar no Quiz</button>
-                    <button onclick="excluirDoBanco(${q.id})" class="opcao" style="background:#e74c3c; padding:5px; font-size:11px;">Excluir Permanente</button>
+                    <button onclick="excluirDoBanco(${q.id})" class="opcao" style="background:#e74c3c; padding:5px; font-size:11px; margin-top:5px;">Excluir Permanente</button>
                 </div>
             `).join('') || "O banco está vazio.";
         }

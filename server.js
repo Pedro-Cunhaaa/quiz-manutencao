@@ -246,15 +246,29 @@ app.post('/excluir-ideia', (req, res) => {
 
 app.get('/admin/refresh-dados', (req, res) => {
     try {
+        // Função auxiliar interna para evitar repetição de código e tratar erros de leitura
+        const lerArquivoSafe = (caminho) => {
+            try {
+                if (!fs.existsSync(caminho)) return [];
+                const conteudo = fs.readFileSync(caminho, 'utf8');
+                return JSON.parse(conteudo || '[]');
+            } catch (e) {
+                console.error(`Erro ao ler ${caminho}:`, e);
+                return [];
+            }
+        };
+
+        // Retorna todos os dados sincronizados
         res.json({
-            tentativas: JSON.parse(fs.readFileSync('./historico.json', 'utf8') || '[]'),
-            ideiasAtuais: JSON.parse(fs.readFileSync('./ideias.json', 'utf8') || '[]'),
-            listaUsuarios: JSON.parse(fs.readFileSync('./usuarios.json', 'utf8') || '[]'),
-            bancoGeral: JSON.parse(fs.readFileSync('./banco_geral.json', 'utf8') || '[]'),
-            perguntasQuiz: JSON.parse(fs.readFileSync('./perguntas.json', 'utf8') || '[]')
+            tentativas: lerArquivoSafe('./historico.json'),
+            ideiasAtuais: lerArquivoSafe('./ideias.json'),
+            listaUsuarios: lerArquivoSafe('./usuarios.json'),
+            bancoGeral: lerArquivoSafe('./banco_geral.json'),
+            perguntasQuiz: lerArquivoSafe('./perguntas.json')
         });
     } catch (err) {
-        res.status(500).json({ erro: "Erro ao ler arquivos" });
+        console.error("Erro crítico na rota refresh-dados:", err);
+        res.status(500).json({ erro: "Erro interno ao processar sincronização" });
     }
 });
 
