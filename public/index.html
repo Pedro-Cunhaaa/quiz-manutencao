@@ -215,6 +215,29 @@
     </div>
 
     <script>
+        const Utils = {
+            // Transforma o arquivo selecionado em uma string Base64
+            toBase64: (file) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            }),
+
+            // Mostra uma prévia da imagem ao selecionar
+            preview: (input) => {
+                const img = document.getElementById('preview-img');
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        img.src = e.target.result;
+                        img.style.display = 'block';
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            }
+        };
+
         let perguntas = [],
             indiceAtual = 0,
             respostasUsuario = {},
@@ -726,58 +749,73 @@
             document.getElementById('sug-pergunta').value = "";
         }
 
-        const Utils = {
-        // Transforma o arquivo selecionado em uma string Base64
-        toBase64: (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        }),
+        // ATUALIZE A FUNÇÃO DE ENVIAR SUGESTÃO (MATEUS)
+        async function enviarIdeia() {
+            const p = document.getElementById('sug-pergunta').value;
+            const fotoFile = document.getElementById('input-foto').files[0];
+            let imagemBase64 = null;
 
-        // Mostra uma prévia da imagem ao selecionar
-        preview: (input) => {
-            const img = document.getElementById('preview-img');
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    img.src = e.target.result;
-                    img.style.display = 'block';
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
+            if (fotoFile) imagemBase64 = await Utils.toBase64(fotoFile);
+
+            const questao = {
+                pergunta: p,
+                imagem: imagemBase64, // Foto opcional inclusa aqui
+                opcoes: [/* ... suas opções ... */],
+                correta: "..." 
+            };
+            
+            await API.post('/salvar-ideia', questao);
+            alert("Sugestão enviada!");
         }
-    };
 
-    // ATUALIZE A FUNÇÃO DE ENVIAR SUGESTÃO (MATEUS)
-    async function enviarIdeia() {
-        const p = document.getElementById('sug-pergunta').value;
-        const fotoFile = document.getElementById('input-foto').files[0];
-        let imagemBase64 = null;
+        // No seu Admin.renderBanco(), adicione a tag <img> se existir:
+        function renderBanco(dados) {
+            const container = document.getElementById('render-banco-geral');
+            container.innerHTML = dados.map(q => `
+                <div class="card-admin">
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; border-radius:4px; margin-bottom:8px;">` : ''}
+                    <strong>${q.pergunta}</strong>
+                    </div>
+            `).join('');
+        }
 
-        if (fotoFile) imagemBase64 = await Utils.toBase64(fotoFile);
+        async function enviarSugestao() {
+            const pergunta = document.getElementById('sug-pergunta').value;
+            const fotoInput = document.getElementById('input-foto-sugestao');
+            let imagemBase64 = null;
 
-        const questao = {
-            pergunta: p,
-            imagem: imagemBase64, // Foto opcional inclusa aqui
-            opcoes: [/* ... suas opções ... */],
-            correta: "..." 
-        };
-        
-        await API.post('/salvar-ideia', questao);
-        alert("Sugestão enviada!");
-    }
+            if (fotoInput.files[0]) {
+                imagemBase64 = await Utils.toBase64(fotoInput.files[0]);
+            }
 
-    // No seu Admin.renderBanco(), adicione a tag <img> se existir:
-    function renderBanco(dados) {
-        const container = document.getElementById('render-banco-geral');
-        container.innerHTML = dados.map(q => `
-            <div class="card-admin">
-                ${q.imagem ? `<img src="${q.imagem}" style="width:100%; border-radius:4px; margin-bottom:8px;">` : ''}
-                <strong>${q.pergunta}</strong>
+            const dados = {
+                pergunta: pergunta,
+                imagem: imagemBase64, // Agora enviando a string da foto
+                opcoes: [/* capturar valores dos inputs */],
+                correta: document.querySelector('input[name="correta-sug"]:checked').value
+            };
+
+            await API.post('/salvar-ideia', dados);
+            alert("Sugestão enviada com sucesso!");
+            location.reload();
+        }
+
+        function renderizarBanco(questoes) {
+            const container = document.getElementById('sec-banco');
+            container.innerHTML = questoes.map(q => `
+                <div class="card-admin">
+                    ${q.imagem ? `<img src="${q.imagem}" style="width:100%; max-height:150px; object-fit:contain; background:#fff; border-radius:4px; margin-bottom:10px;">` : ''}
+                    
+                    <strong>${q.pergunta}</strong>
+                    <div class="opcoes-lista">
+                        ${q.opcoes.map(opt => `<div>[${opt === q.correta ? 'X' : ' '}] ${opt}</div>`).join('')}
+                    </div>
+                    
+                    <button onclick="ativarQuestao(${q.id})" class="opcao" style="background:var(--success)">Ativar no Quiz</button>
+                    <button onclick="excluirDoBanco(${q.id})" class="opcao" style="background:var(--danger)">Excluir Permanentemente</button>
                 </div>
-        `).join('');
-    }
+            `).join('');
+        }
     </script>
 </body>
 
