@@ -488,10 +488,14 @@
                 correta: textoCorreta
             };
 
-            // Preenche as opções dinamicamente
+            // Preenche as opções dinamicamente e limpa os campos de texto das opções
+            const camposOpcoes = [];
             for (let i = 0; i < 5; i++) {
                 const opt = document.getElementById(`${optIdBase}${i}`) || document.getElementById(`dir-opt-${i}`) || document.getElementById(`opt-sug-${i}`);
-                if (opt) payload.opcoes.push(opt.value);
+                if (opt) {
+                    payload.opcoes.push(opt.value);
+                    camposOpcoes.push(opt); // Guarda a referência para limpar depois
+                }
             }
 
             const rota = tipo === 'admin' ? '/questoes/adicionar' : '/salvar-ideia';
@@ -505,9 +509,32 @@
 
                 if (res.ok) {
                     alert("Sucesso!");
-                    location.reload();
+                    
+                    // --- ATUALIZAÇÕES PARA EVITAR LOGOUT ---
+                    
+                    // 1. Atualiza os dados internos sem recarregar a página
+                    await atualizarDadosInterface(); 
+
+                    // 2. Limpa os campos do formulário manualmente
+                    perguntaElem.value = '';
+                    if (fotoInput) fotoInput.value = '';
+                    
+                    // Limpa os inputs de texto das alternativas
+                    camposOpcoes.forEach(campo => campo.value = '');
+                    
+                    // Desmarca o radio button selecionado
+                    corretaRadio.checked = false;
+
+                    // 3. Opcional: Volta para o menu inicial se for o Mateus
+                    if (typeof voltarMenu === 'function') {
+                        voltarMenu();
+                    }
+                    
+                } else {
+                    alert("Erro ao salvar no servidor.");
                 }
             } catch (err) {
+                console.error("Erro na requisição:", err);
                 alert("Erro de conexão com o servidor.");
             }
         }
@@ -531,14 +558,24 @@
                     </div>
                     <div>Nota: <span style="color:#f1c40f;">${t.nota}</span></div>
                     <button onclick="toggleSecao('det-${indexOriginal}', this, 'Detalhes')" class="opcao" style="padding:5px; font-size:11px; margin-top:8px; background:#2980b9;">Ver Detalhes</button>
+                    
                     <div id="det-${indexOriginal}" class="escondido detalhes-expansiveis">
                         ${t.detalhes.map(d => `
-                            <div style="margin-bottom:8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">
-                                <strong>${d.pergunta}</strong><br>
-                                Resp: ${d.respostaDada}
-                                <span class="${d.status ? 'correto' : 'errado'}">
-                                    ${d.status ? '(Certa)' : '(Errada)'}
-                                </span>
+                            <div style="margin-bottom:12px; border-bottom: 1px solid #444; padding-bottom: 8px;">
+                                <strong>P: ${d.pergunta}</strong><br>
+                                
+                                ${d.imagem ? `
+                                    <div style="margin: 8px 0; text-align: center; background: white; border-radius: 4px; padding: 5px;">
+                                        <img src="${d.imagem}" style="max-width: 100%; max-height: 120px; object-fit: contain; cursor: pointer;" onclick="window.open(this.src)">
+                                    </div>
+                                ` : ''}
+
+                                <div style="font-size: 13px; margin-top: 5px;">
+                                    Resp. Dada: <span class="${d.status ? 'correto' : 'errado'}">
+                                        ${d.respostaDada} ${d.status ? '(Certa)' : '(Errada)'}
+                                    </span>
+                                    ${!d.status ? `<br><span style="color: #2ecc71;">Correta: ${d.correta || 'Não registrada'}</span>` : ''}
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -548,18 +585,41 @@
 
         function baixarRelatoriosTXT() {
             if (historicoAdmin.length === 0) return alert("Não há relatórios para baixar.");
-            let conteudo = "RELATÓRIO DE TREINAMENTO\n====================================\n\n";
+
+            let conteudo = "RELATÓRIO DE DESEMPENHO - SISTEMA DE MANUTENÇÃO\n";
+            conteudo += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
+            conteudo += "================================================\n\n";
+
             [...historicoAdmin].reverse().forEach(rel => {
-                conteudo += `USUÁRIO: ${rel.nome.toUpperCase()}\nDATA: ${rel.data}\nNOTA: ${rel.nota}\nDETALHES:\n`;
-                rel.detalhes.forEach(det => {
-                    conteudo += ` - P: ${det.pergunta}\n R: ${det.respostaDada} [${det.status ? 'CORRETA' : 'ERRADA'}]\n`;
+                conteudo += `USUÁRIO: ${rel.nome.toUpperCase()}\n`;
+                conteudo += `DATA:    ${rel.data}\n`;
+                conteudo += `NOTA:    ${rel.nota}\n`;
+                conteudo += `DETALHES DAS RESPOSTAS:\n`;
+
+                rel.detalhes.forEach((det, index) => {
+                    const marcadorImagem = det.imagem ? " [IMAGEM PRESENTE NO QUIZ]" : "";
+                    conteudo += ` ${index + 1}. P: ${det.pergunta}${marcadorImagem}\n`;
+                    conteudo += `    Resposta Dada: ${det.respostaDada}\n`;
+                    conteudo += `    Status: [${det.status ? 'CORRETA' : 'ERRADA'}]\n`;
+                    
+                    // Se estiver errada, adiciona o gabarito no texto
+                    if (!det.status) {
+                        conteudo += `    Gabarito: ${det.correta || 'Não informado'}\n`;
+                    }
+                    conteudo += `\n`;
                 });
-                conteudo += "\n------------------------------------\n\n";
+
+                conteudo += "------------------------------------------------\n\n";
             });
-            const blob = new Blob([conteudo], { type: 'text/plain' });
+
+            const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Relatorios_${new Date().toLocaleDateString().replace(/\//g, '-')}.txt`;
+            
+            // Nome do arquivo com data e hora para evitar sobreposição
+            const dataArquivo = new Date().toISOString().slice(0, 10);
+            link.download = `Relatorios_Manutencao_${dataArquivo}.txt`;
+            
             link.click();
             URL.revokeObjectURL(link.href);
         }
@@ -587,8 +647,13 @@
             div.innerHTML = ideiasAtuais.map((item, i) => `
             <div class="card-admin" style="background:#2c3e50; border-left-color:#27ae60;">
                 <strong>Sugestão #${i + 1}</strong>
-                ${item.imagem ? `<img src="${item.imagem}" style="width:100%; max-height:150px; object-fit:contain; border-radius:4px; margin-top:10px; background:white;">` : ''}
                 
+                ${item.imagem ? `
+                    <div style="margin-top:10px; text-align:center; background:white; border-radius:4px; padding:5px;">
+                        <img src="${item.imagem}" style="max-width:100%; max-height:150px; object-fit:contain;">
+                    </div>
+                ` : ''}
+
                 <div style="margin:10px 0; font-size:13px;">
                     <strong>P: ${item.pergunta}</strong><br>
                     ${item.opcoes.map(o => `
@@ -597,9 +662,9 @@
                         </div>
                     `).join('')}
                 </div>
-                <button onclick="aprovarParaBanco(${item.id})" class="opcao" style="background:#27ae60; margin-bottom:5px;">Adicionar ao banco</button>
+                <button onclick="aprovarParaBanco(${item.id})" class="opcao" style="background:#27ae60; margin-bottom:5px;">Aprovar e Mover para Banco</button>
                 <button onclick="excluirSugestao(${item.id})" class="opcao" style="background:#e74c3c;">Excluir</button>
-            </div>`).join('') || "Vazio.";
+            </div>`).join('') || "Nenhuma sugestão pendente.";
         }
 
         async function aprovarParaBanco(id) {
@@ -1192,6 +1257,32 @@
             } catch (err) {
                 console.error("Erro ao ativar:", err);
             }
+        }
+
+        function voltarMenu() {
+            // 1. Esconde todas as seções de formulários ou listas
+            const secoes = [
+                'sec-sugestao', 
+                'sec-questoes', 
+                'sec-banco-geral', 
+                'sec-usuarios', 
+                'sec-relatorios'
+            ];
+            
+            secoes.forEach(id => {
+                const elemento = document.getElementById(id);
+                if (elemento) elemento.classList.add('escondido');
+            });
+
+            // 2. Garante que o menu principal de botões (container de opções) esteja visível
+            const menuPrincipal = document.getElementById('menu-opcoes') || document.getElementById('area-admin');
+            if (menuPrincipal) {
+                menuPrincipal.classList.remove('escondido');
+            }
+
+            // 3. Reset de textos de botões (caso algum toggle tenha mudado o texto)
+            const btnQuestoes = document.querySelector("button[onclick*='toggleSecaoQuestoes']");
+            if (btnQuestoes) btnQuestoes.innerText = "Exibir Questões do Quiz";
         }
     </script>
 </body>

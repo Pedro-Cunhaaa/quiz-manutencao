@@ -192,7 +192,9 @@ app.post('/validar', (req, res) => {
         if (ok) acertos++;
         return {
             pergunta: p.pergunta,
+            imagem: p.imagem, // ADICIONADO: Salva a imagem no relatório
             respostaDada: resp || "N/A",
+            correta: p.correta, // ADICIONADO: Para comparar no relatório
             status: ok
         };
     });
@@ -219,9 +221,15 @@ app.post('/remover-relatorio', (req, res) => {
 // --- SUGESTÕES (IDEIAS) ---
 
 app.post('/salvar-ideia', (req, res) => {
-    const i = lerJSON(CAMINHO_IDEIAS);
-    i.push({ id: Date.now(), ...req.body });
-    salvarJSON(CAMINHO_IDEIAS, i);
+    const ideias = lerJSON(CAMINHO_IDEIAS);
+    
+    // O req.body já traz a pergunta, opcoes, correta E a imagem (Base64)
+    ideias.push({ 
+        id: Date.now(), 
+        ...req.body 
+    });
+    
+    salvarJSON(CAMINHO_IDEIAS, ideias);
     res.json({ sucesso: true });
 });
 
